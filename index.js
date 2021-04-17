@@ -17,7 +17,7 @@ let io = socket(server);
 //Triggered when a client is connected.
 
 io.on("connection", function (socket) {
-  console.log("User Connected :" + socket.id);
+  console.log("\x1b[31m", "User Connected :" + socket.id);
   const userId = socket.id;
 
   //Triggered when a peer hits the join room button.
@@ -61,22 +61,23 @@ io.on("connection", function (socket) {
   socket.on("candidate", function (candidate, roomName) {
     console.log("candidate", candidate.candidate);
     // console.log(candidate);
-    socket.to(roomName).emit("candidate", candidate); //Sends Candidate to the other peer in the room.
+    socket.to(roomName).emit("candidate", candidate, userId); //Sends Candidate to the other peer in the room.
   });
 
   //Triggered when server gets an offer from a peer in the room.
 
-  socket.on("offer", function (offer, roomName) {
+  socket.on("offer", (offer, userToReplyTo) => {
     console.log("offer");
+
     // x1
-    socket.to(roomName).emit("offer", offer, userId); //Sends Offer to the other peer in the room.
+    socket.to(userToReplyTo).emit("offer", offer, userId); //Sends Offer to the other peer in the room.
   });
 
   //Triggered when server gets an answer from a peer in the room.
 
-  socket.on("answer", function (answer, roomName) {
+  socket.on("answer", function (answer, userToReplyTo) {
     console.log("answer");
     // x1
-    socket.to(roomName).emit("answer", answer); //Sends Answer to the other peer in the room.
+    socket.to(userToReplyTo).emit("answer", answer, userId); //Sends Answer to the other peer in the room.
   });
 });

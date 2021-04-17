@@ -6,10 +6,8 @@ let userVideo = document.getElementById("user-video");
 let roomInput = document.getElementById("roomName");
 let roomName;
 let creator = false;
-let rtcPeerConnection;
-let userStream;
 
-// send to front only encoded ids for identifying and display the users. only the server can decode it.
+let userStream;
 
 // Contains the stun server URL we will be using.
 let iceServers = {
@@ -23,19 +21,19 @@ let iceServers = {
   ],
 };
 
+let peers = {};
+
 joinButton.addEventListener("click", function () {
   if (roomInput.value == "") {
     alert("Please enter a room name");
   } else {
     roomName = roomInput.value;
+    console.log("emit join 🤙");
     socket.emit("join", roomName);
   }
 });
 
 // Triggered when a room is succesfully created.
-// get "getUserMedia" function for other browsers
-
-// get "getUserMedia" function for other browsers
 navigator.getUserMedia =
   navigator.getUserMedia ||
   navigator.webkitGetUserMedia ||
@@ -79,11 +77,11 @@ const getMediaDevicesSuccessJoined = stream => {
     userVideo.play();
   };
 
-  console.log("joined then ready");
+  console.log("emit ready 🤙");
   socket.emit("ready", roomName);
 }
 
-const getMediaDevicesError = () => {
+const getMediaDevicesError = err => {
   /* handle the error */
   console.log(err);
   alert("Couldn't Access User Media");
@@ -119,72 +117,77 @@ socket.on("full", function () {
 socket.on("ready", function (userId) {
   console.log("ready");
 
-  if (creator) {
-    rtcPeerConnection = new RTCPeerConnection(iceServers);
-    // x multiple times...
-    rtcPeerConnection.onicecandidate = OnIceCandidateFunction;
-    rtcPeerConnection.ontrack = (e) => OnTrackFunction(e, userId);
-    rtcPeerConnection.addTrack(userStream.getTracks()[0], userStream);
-    rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
-    console.log("creating offer");
-    rtcPeerConnection
-      .createOffer()
-      .then((offer) => {
-        console.log("recieving offer");
-        rtcPeerConnection.setLocalDescription(offer);
-        // x1
-        socket.emit("offer", offer, roomName);
-      })
-      .catch((error) => {
-        console.log("error");
-        console.log(error);
-      });
-  }
+  // generating offer
+  peers[userId] = new RTCPeerConnection(iceServers);
+  peers[userId].onicecandidate = OnIceCandidateFunction;
+  peers[userId].ontrack = (e) => OnTrackFunction(e, userId);
+
+  userStream.getTracks().forEach(track => {
+    peers[userId].addTrack(track, userStream); // type : MediaStreamTrack
+  });
+
+  peers[userId].createOffer().then((offer) => {
+    console.log("ready createOffer");
+
+    peers[userId].setLocalDescription(new RTCSessionDescription(offer)).then(async () => {
+      console.log("ready setLocalDescription 😎 emit offer 🤙");
+      socket.emit("offer", offer, userId); // reply only to user ready
+    }).catch((error) => {
+      console.log('error', error);
+    });
+  }).catch((error) => {
+    console.log('error', error);
+  });
 });
 
 // Triggered on receiving an ice candidate from the peer.
 
-socket.on("candidate", function (candidate) {
-  console.log("candidate", candidate.candidate);
-  let icecandidate = new RTCIceCandidate(candidate);
-  rtcPeerConnection.addIceCandidate(icecandidate);
+socket.on("candidate", function (candidate, userId) {
+  // console.log("candidate", candidate.candidate);
+  // console.log(userId, peers[userId].signalingState);
+  console.log('candidate 🚕 ', userId, peers[userId].signalingState);
+  peers[userId].addIceCandidate(new RTCIceCandidate(candidate));
 });
 
 // Triggered on receiving an offer from the person who created the room.
 
 socket.on("offer", function (offer, userId) {
   // x1
-  console.log("offer");
-  if (!creator) {
-    rtcPeerConnection = new RTCPeerConnection(iceServers);
-    // multiple times
-    rtcPeerConnection.onicecandidate = OnIceCandidateFunction;
-    console.log("will launch OnTrackFunction", rtcPeerConnection);
-    // double event triggered if video and audio is requested
-    rtcPeerConnection.ontrack = (e) => OnTrackFunction(e, userId);
-    rtcPeerConnection.addTrack(userStream.getTracks()[0], userStream);
-    rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
-    rtcPeerConnection.setRemoteDescription(offer);
-    rtcPeerConnection
-      .createAnswer()
-      .then((answer) => {
-        // x1
-        console.log("offer then answer");
-        rtcPeerConnection.setLocalDescription(answer);
-        socket.emit("answer", answer, roomName);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-  }
+  console.log("recieving offer 📲");
+  // sending answer
+  peers[userId] = new RTCPeerConnection(iceServers);
+  peers[userId].onicecandidate = OnIceCandidateFunction;
+  peers[userId].ontrack = (e) => OnTrackFunction(e, userId);
+
+  userStream.getTracks().forEach(track => {
+    peers[userId].addTrack(track, userStream); // type : MediaStreamTrack
+  });
+
+  peers[userId].setRemoteDescription(new RTCSessionDescription(offer)).then(async () => {
+    console.log("offer setRemoteDescription 👽");
+
+    peers[userId].createAnswer().then(answer => {
+      console.log("offer createAnswer");
+      peers[userId].setLocalDescription(answer)
+      console.log("offer setLocalDescription 😎 emit answer 🤙");
+
+      socket.emit("answer", answer, userId); // only send answer to specific user
+    }).catch((error) => {
+      console.log(error);
+    });
+  }).catch((error) => {
+    console.log(error);
+  });
 });
 
 // Triggered on receiving an answer from the person who joined the room.
 
-socket.on("answer", function (answer) {
-  // x1
-  console.log("anwser");
-  rtcPeerConnection.setRemoteDescription(answer);
+socket.on("answer", function (answer, userId) {
+  console.log("recieving anwser 📲");
+  //, userId, "peers", peers, 'state', rtcPeerConnection.signalingState
+
+  peers[userId].setRemoteDescription(new RTCSessionDescription(answer))
+  console.log('anwser setRemoteDescription 👽');
 });
 
 // Implementing the OnIceCandidateFunction which is part of the RTCPeerConnection Interface.
@@ -192,7 +195,7 @@ socket.on("answer", function (answer) {
 // bouger tout ça dans node car ce n'est pas normal que dans l'event j'ai l'adresse ip du user
 function OnIceCandidateFunction(event) {
   if (event.candidate) {
-    console.log("OnIceCandidateFunction", event.candidate.candidate);
+    console.log("OnIceCandidateFunction");
     socket.emit("candidate", event.candidate, roomName);
   }
 }
@@ -200,10 +203,8 @@ function OnIceCandidateFunction(event) {
 // Implementing the OnTrackFunction which is part of the RTCPeerConnection Interface.
 
 function OnTrackFunction(event, userId) {
-  // double event triggered if video and audio is requested
-
   const trackKind = event?.track?.kind;
-  console.log("OnTrackFunction ", trackKind);
+  console.log(" eventHandler OnTrackFunction 👽", trackKind);
 
   if (!trackKind) return null;
 
@@ -213,26 +214,14 @@ function OnTrackFunction(event, userId) {
     divVideoChat.appendChild(newPeerVideo);
     newPeerVideo.srcObject = event.streams[0];
     newPeerVideo.onloadedmetadata = function (e) {
+      console.log('onloadedmetadata 📺 ---------------------------------------------------------------');
       newPeerVideo.play();
-    };
-  } else if (trackKind === "audio") {
-    // where in the project is set the audio so I can mute the person I'm talking to / mute myself ?
-    const newPeerAudio = document.createElement("audio");
-    newPeerAudio.setAttribute("id", "audio" + userId);
-    newPeerAudio.setAttribute("controls", true);
-    divVideoChat.appendChild(newPeerAudio);
-    newPeerAudio.srcObject = event.streams[0];
-    newPeerAudio.onloadedmetadata = function (e) {
-      newPeerAudio.play();
     };
   }
 }
 
-// connection via un autre pc ==> Uncaught (in promise) DOMException: Failed to execute 'setRemoteDescription' on 'RTCPeerConnection': Failed to set remote answer sdp: Called in wrong state: stable
-// probleme de connexion à socket
-
 // Disconnect user if he leaves
 socket.on("user-disconnected", (userId) => {
-  console.log("disconnected");
+  console.log("disconnected 📲");
   document.getElementById(userId).remove();
 });
