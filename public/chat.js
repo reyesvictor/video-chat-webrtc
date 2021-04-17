@@ -22,13 +22,13 @@ let iceServers = {
 };
 
 let peers = {};
+let senders = {};
 
 joinButton.addEventListener("click", function () {
   if (roomInput.value == "") {
     alert("Please enter a room name");
   } else {
     roomName = roomInput.value;
-    console.log("emit join 🤙");
     socket.emit("join", roomName);
   }
 });
@@ -43,8 +43,8 @@ navigator.getUserMedia =
 const USERMEDIA = {
   audio: true,
   video: {
-    width: 1280,
-    height: 720,
+    width: 176,
+    height: 144,
   },
 };
 
@@ -57,7 +57,7 @@ const getMediaDevices = () => {
   }
 };
 
-const getMediaDevicesSuccessCreated = stream => {
+const getMediaDevicesSuccessCreated = (stream) => {
   /* use the stream */
   userStream = stream;
   divVideoChatLobby.style = "display:none";
@@ -66,9 +66,9 @@ const getMediaDevicesSuccessCreated = stream => {
   userVideo.onloadedmetadata = function (e) {
     userVideo.play();
   };
-}
+};
 
-const getMediaDevicesSuccessJoined = stream => {
+const getMediaDevicesSuccessJoined = (stream) => {
   /* use the stream */
   userStream = stream;
   divVideoChatLobby.style = "display:none";
@@ -77,15 +77,10 @@ const getMediaDevicesSuccessJoined = stream => {
     userVideo.play();
   };
 
-  console.log("emit ready 🤙");
   socket.emit("ready", roomName);
-}
-
-const getMediaDevicesError = err => {
-  /* handle the error */
-  console.log(err);
-  alert("Couldn't Access User Media");
 };
+
+const getMediaDevicesError = (err) => alert("Couldn't Access User Media");
 
 socket.on("created", function () {
   creator = true;
@@ -95,10 +90,7 @@ socket.on("created", function () {
 });
 
 // Triggered when a room is succesfully joined.
-
 socket.on("joined", function () {
-  console.log("joined front");
-
   creator = false;
 
   getMediaDevices()
@@ -107,96 +99,79 @@ socket.on("joined", function () {
 });
 
 // Triggered when a room is full (meaning has 2 people).
-
 socket.on("full", function () {
   alert("Room is Full, Can't Join");
 });
 
 // Triggered when a peer has joined the room and ready to communicate.
-
 socket.on("ready", function (userId) {
-  console.log("ready");
-
   // generating offer
   peers[userId] = new RTCPeerConnection(iceServers);
-  peers[userId].onicecandidate = OnIceCandidateFunction;
+  peers[userId].onicecandidate = (e) => OnIceCandidateFunction(e, userId);
   peers[userId].ontrack = (e) => OnTrackFunction(e, userId);
 
-  userStream.getTracks().forEach(track => {
+  userStream.getTracks().forEach((track) => {
     peers[userId].addTrack(track, userStream); // type : MediaStreamTrack
   });
 
-  peers[userId].createOffer().then((offer) => {
-    console.log("ready createOffer");
-
-    peers[userId].setLocalDescription(new RTCSessionDescription(offer)).then(async () => {
-      console.log("ready setLocalDescription 😎 emit offer 🤙");
-      socket.emit("offer", offer, userId); // reply only to user ready
-    }).catch((error) => {
-      console.log('error', error);
-    });
-  }).catch((error) => {
-    console.log('error', error);
-  });
+  peers[userId]
+    .createOffer()
+    .then((offer) => {
+      peers[userId]
+        .setLocalDescription(new RTCSessionDescription(offer))
+        .then(async () => {
+          socket.emit("offer", offer, userId); // reply only to user ready
+        })
+        .catch((err) => console.log(err));
+    })
+    .catch((err) => console.log(err));
 });
 
 // Triggered on receiving an ice candidate from the peer.
-
 socket.on("candidate", function (candidate, userId) {
-  // console.log("candidate", candidate.candidate);
-  // console.log(userId, peers[userId].signalingState);
-  console.log('candidate 🚕 ', userId, peers[userId].signalingState);
-  peers[userId].addIceCandidate(new RTCIceCandidate(candidate));
+  peers[userId].addIceCandidate(candidate).catch((err) => console.log(err));
 });
 
 // Triggered on receiving an offer from the person who created the room.
-
 socket.on("offer", function (offer, userId) {
   // x1
-  console.log("recieving offer 📲");
   // sending answer
   peers[userId] = new RTCPeerConnection(iceServers);
-  peers[userId].onicecandidate = OnIceCandidateFunction;
+  peers[userId].onicecandidate = (e) => OnIceCandidateFunction(e, userId);
   peers[userId].ontrack = (e) => OnTrackFunction(e, userId);
 
-  userStream.getTracks().forEach(track => {
+  userStream.getTracks().forEach((track) => {
     peers[userId].addTrack(track, userStream); // type : MediaStreamTrack
   });
 
-  peers[userId].setRemoteDescription(new RTCSessionDescription(offer)).then(async () => {
-    console.log("offer setRemoteDescription 👽");
-
-    peers[userId].createAnswer().then(answer => {
-      console.log("offer createAnswer");
-      peers[userId].setLocalDescription(answer)
-      console.log("offer setLocalDescription 😎 emit answer 🤙");
-
-      socket.emit("answer", answer, userId); // only send answer to specific user
-    }).catch((error) => {
-      console.log(error);
-    });
-  }).catch((error) => {
-    console.log(error);
-  });
+  peers[userId]
+    .setRemoteDescription(new RTCSessionDescription(offer))
+    .then(async () => {
+      peers[userId]
+        .createAnswer()
+        .then((answer) => {
+          peers[userId]
+            .setLocalDescription(answer)
+            .catch((err) => console.log(err));
+          socket.emit("answer", answer, userId); // only send answer to specific user
+        })
+        .catch((err) => console.log(err));
+    })
+    .catch((err) => console.log(err));
 });
 
 // Triggered on receiving an answer from the person who joined the room.
 
 socket.on("answer", function (answer, userId) {
-  console.log("recieving anwser 📲");
-  //, userId, "peers", peers, 'state', rtcPeerConnection.signalingState
-
-  peers[userId].setRemoteDescription(new RTCSessionDescription(answer))
-  console.log('anwser setRemoteDescription 👽');
+  peers[userId]
+    .setRemoteDescription(new RTCSessionDescription(answer))
+    .catch((err) => console.log(err));
 });
 
 // Implementing the OnIceCandidateFunction which is part of the RTCPeerConnection Interface.
-
-// bouger tout ça dans node car ce n'est pas normal que dans l'event j'ai l'adresse ip du user
-function OnIceCandidateFunction(event) {
+function OnIceCandidateFunction(event, userToReplyTo) {
   if (event.candidate) {
-    console.log("OnIceCandidateFunction");
-    socket.emit("candidate", event.candidate, roomName);
+    socket.emit("candidate", event.candidate, userToReplyTo);
   }
 }
 
@@ -204,9 +179,6 @@ function OnIceCandidateFunction(event) {
 
 function OnTrackFunction(event, userId) {
   const trackKind = event?.track?.kind;
-  console.log(" eventHandler OnTrackFunction 👽", trackKind);
-
-  if (!trackKind) return null;
 
   if (trackKind === "video") {
     const newPeerVideo = document.createElement("video");
@@ -214,7 +186,6 @@ function OnTrackFunction(event, userId) {
     divVideoChat.appendChild(newPeerVideo);
     newPeerVideo.srcObject = event.streams[0];
     newPeerVideo.onloadedmetadata = function (e) {
-      console.log('onloadedmetadata 📺 ---------------------------------------------------------------');
       newPeerVideo.play();
     };
   }
@@ -222,6 +193,62 @@ function OnTrackFunction(event, userId) {
 
 // Disconnect user if he leaves
 socket.on("user-disconnected", (userId) => {
-  console.log("disconnected 📲");
   document.getElementById(userId).remove();
+  peers[userId].close();
+});
+
+document.getElementById("hangUp").addEventListener("click", (e) => {
+  const quit = window.confirm("Do you want to quit the call ?");
+
+  if (quit) {
+    socket.emit("force-disconnect", roomName);
+    Object.keys(peers).forEach((id) => peers[id].close());
+    document.body.innerHTML = "Disconnected";
+  }
+});
+
+document.getElementById("hideVideo").addEventListener("click", () => {
+  Object.keys(peers).forEach((id) => {
+    const senders = peers[id].getSenders();
+
+    senders.forEach((sender) => {
+      if (sender.track.kind === "video") {
+        sender.track.enabled = false;
+      }
+    });
+  });
+});
+
+document.getElementById("showVideo").addEventListener("click", () => {
+  Object.keys(peers).forEach((id) => {
+    const senders = peers[id].getSenders();
+    senders.forEach((sender) => {
+      if (sender.track.kind === "video") {
+        sender.track.enabled = true;
+      }
+    });
+  });
+});
+
+// alternatives : removeTrack ou replaceTrack...
+document.getElementById("muteAudio").addEventListener("click", () => {
+  Object.keys(peers).forEach((id) => {
+    const senders = peers[id].getSenders();
+    senders.forEach((sender) => {
+      if (sender.track.kind === "audio") {
+        sender.track.enabled = false;
+      }
+    });
+  });
+});
+
+document.getElementById("enableAudio").addEventListener("click", () => {
+  Object.keys(peers).forEach((id) => {
+    const senders = peers[id].getSenders();
+    senders.forEach((sender) => {
+      if (sender.track.kind === "audio") {
+        sender.track.enabled = true;
+      }
+    });
+  });
 });

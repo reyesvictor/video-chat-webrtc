@@ -58,10 +58,10 @@ io.on("connection", function (socket) {
 
   //Triggered when server gets an icecandidate from a peer in the room.
 
-  socket.on("candidate", function (candidate, roomName) {
+  socket.on("candidate", function (candidate, userToReplyTo) {
     console.log("candidate", candidate.candidate);
     // console.log(candidate);
-    socket.to(roomName).emit("candidate", candidate, userId); //Sends Candidate to the other peer in the room.
+    socket.to(userToReplyTo).emit("candidate", candidate, userId); //Sends Candidate to the other peer in the room.
   });
 
   //Triggered when server gets an offer from a peer in the room.
@@ -79,5 +79,9 @@ io.on("connection", function (socket) {
     console.log("answer");
     // x1
     socket.to(userToReplyTo).emit("answer", answer, userId); //Sends Answer to the other peer in the room.
+  });
+
+  socket.on("force-disconnect", roomName => {
+    socket.disconnect();
   });
 });
