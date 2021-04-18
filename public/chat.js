@@ -6,7 +6,7 @@ let userVideo = document.getElementById("user-video");
 let roomInput = document.getElementById("roomName");
 let roomName;
 let creator = false;
-
+let peers = {};
 let userStream;
 
 // Contains the stun server URL we will be using.
@@ -21,8 +21,11 @@ let iceServers = {
   ],
 };
 
-let peers = {};
-let senders = {};
+document.getElementById("genRoom").addEventListener('click', () => {
+  axios.get("/generate-room").then(response => {
+    document.getElementById('genRoomURL').innerText = response.data;
+  })
+});
 
 joinButton.addEventListener("click", function () {
   if (roomInput.value == "") {
@@ -48,17 +51,15 @@ const USERMEDIA = {
   },
 };
 
-const getMediaDevices = () => {
+const getMediaDevices = async () => {
   if (navigator.mediaDevices) {
-    // if navigator.mediaDevices exists, use it
-    return navigator.mediaDevices.getUserMedia(USERMEDIA);
+    return navigator.mediaDevices.getDisplayMedia()
   } else {
     return navigator.getUserMedia(USERMEDIA);
   }
 };
 
 const getMediaDevicesSuccessCreated = (stream) => {
-  /* use the stream */
   userStream = stream;
   divVideoChatLobby.style = "display:none";
   userVideo.srcObject = stream;
@@ -69,7 +70,6 @@ const getMediaDevicesSuccessCreated = (stream) => {
 };
 
 const getMediaDevicesSuccessJoined = (stream) => {
-  /* use the stream */
   userStream = stream;
   divVideoChatLobby.style = "display:none";
   userVideo.srcObject = stream;
@@ -194,6 +194,13 @@ function OnTrackFunction(event, userId) {
 // Disconnect user if he leaves
 socket.on("user-disconnected", (userId) => {
   document.getElementById(userId).remove();
+
+  const name = document.getElementById('name-' + userId);
+  if (name) name.remove();
+
+  const img = document.getElementById('img-' + userId);
+  if (img) img.remove();
+
   peers[userId].close();
 });
 
@@ -201,9 +208,10 @@ document.getElementById("hangUp").addEventListener("click", (e) => {
   const quit = window.confirm("Do you want to quit the call ?");
 
   if (quit) {
+    userStream.getTracks().forEach(track => track.stop());
     socket.emit("force-disconnect", roomName);
     Object.keys(peers).forEach((id) => peers[id].close());
-    document.body.innerHTML = "Disconnected";
+    document.body.innerHTML = "<p>Disconnected</p><br/><button onclick=\"window.location.reload()\">Go back to homepage</button>";
   }
 });
 
@@ -217,6 +225,8 @@ document.getElementById("hideVideo").addEventListener("click", () => {
       }
     });
   });
+
+  socket.emit('hideVideo', roomName);
 });
 
 document.getElementById("showVideo").addEventListener("click", () => {
@@ -228,6 +238,8 @@ document.getElementById("showVideo").addEventListener("click", () => {
       }
     });
   });
+
+  socket.emit('showVideo', roomName);
 });
 
 // alternatives : removeTrack ou replaceTrack...
@@ -251,4 +263,41 @@ document.getElementById("enableAudio").addEventListener("click", () => {
       }
     });
   });
+});
+
+document.getElementById("newNameButton").addEventListener("click", () => {
+  socket.emit("name", roomName, document.getElementById("newNameInput").value);
+});
+
+socket.on("name", function (userId, newName) {
+  const id = 'name-' + userId;
+  if (document.getElementById(id)) {
+    document.getElementById(id).innerText = newName;
+
+    return null;
+  }
+
+  const name = document.createElement('p');
+  name.innerText = newName;
+  name.setAttribute('id', id);
+  document.getElementById(userId).after(name);
+});
+
+socket.on("hideVideo", async userId => {
+  console.log('hideVideo')
+
+  const response = await axios.get('https://meme-api.herokuapp.com/gimme');
+
+  document.getElementById(userId).style.display = "none";
+  const img = document.createElement('img');
+  img.setAttribute('id', 'img-' + userId);
+  img.setAttribute('src', response.data.url);
+  document.getElementById(userId).after(img);
+});
+
+socket.on("showVideo", userId => {
+  document.getElementById(userId).style.display = "block";
+
+  const img = document.getElementById('img-' + userId);
+  if (img) img.remove();
 });
