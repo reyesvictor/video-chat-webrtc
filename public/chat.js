@@ -9,6 +9,8 @@ let creator = false;
 let peers = {};
 let userStream;
 
+window.onload = () => console.log("Hello 👋 ! Come visit my portoflio:\nhttps://reyesvictor.github.io/#/\nand my github:\nhttps://github.com/reyesvictor");
+
 // Contains the stun server URL we will be using.
 let iceServers = {
   iceServers: [
