@@ -36,14 +36,12 @@
   <br />
   <button type="button" class="btn btn-danger">Hang Up ☎</button>
   <br />
-  <Room />
 </template>
 
 <script lang="ts">
 import { toast } from "../services/ToastService";
 import { ref, defineComponent, reactive, toRefs } from "vue";
 import { useStore } from "vuex";
-import Room from "../components/Room";
 
 interface VideoHTMLRef {
   srcObject: MediaStream;
@@ -54,9 +52,7 @@ interface VideoHTMLRef {
 
 export default defineComponent({
   name: "Lobby",
-  components: {
-    Room,
-  },
+  components: {},
   setup() {
     const camVideo = ref<null | VideoHTMLRef>(null);
     const screenVideo = ref<null | VideoHTMLRef>(null);

@@ -137,14 +137,16 @@ export default {
       );
     },
     join({ state }: any) {
-      state.socket.emit(
+      return state.socket.emit(
         "vue-join",
         router.currentRoute.value.params.id,
         ({ success, err }: SocketCallback) => {
           if (err) {
             toast("error", err);
+            return false;
           } else {
             toast("success", success);
+            return true;
           }
         }
       );

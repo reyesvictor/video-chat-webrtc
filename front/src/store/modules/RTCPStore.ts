@@ -83,7 +83,7 @@ export default {
       const stream: MyMediaStream = await getCamStream(state.user.media);
       if (stream) commit("START_CAM_VIDEO", stream);
     },
-    async startScreenVideo({ commit }: any) {
+    async startScreenVideo({ commit, dispatch }: any) {
       // should I get the stream before and then only send the stream payload to the action ?
       // or create another module specific for streams
       const stream: MyMediaStream = await getScreenStream();

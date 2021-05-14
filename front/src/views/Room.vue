@@ -1,5 +1,6 @@
 <template>
   This is a room 😎
+  <button @click="join" v-if="!hasJoined">Join the Call</button>
   <br />
   <a :href="'/r/' + $route.params.id" target="_blank">Share !</a>
   <div id="video-grid">
@@ -94,10 +95,13 @@ export default defineComponent({
       isCamHidden: false,
       isScreenOn: false,
       isAudioMute: false,
+      hasJoined: false,
     });
 
     const startCamVideo = () => store.dispatch("rtcp/startCamVideo");
-    const startScreenVideo = () => store.dispatch("rtcp/startScreenVideo");
+    const startScreenVideo = () => {
+      store.dispatch("rtcp/startScreenVideo");
+    };
 
     const hideVideo = async () => {
       const success = await store.dispatch("rtcp/hideVideo");
@@ -160,7 +164,15 @@ export default defineComponent({
       }
     );
 
+    const join = async () => {
+      store.dispatch("socket/connect"); // WARNING DOUBLE CONNECT IF THE SAME PERSON CREATED THE ROOM
+
+      const success = await store.dispatch("socket/join");
+      if (success) state.hasJoined = true;
+    };
+
     return {
+      join,
       hangUp,
       camVideo,
       hideVideo,
@@ -185,8 +197,10 @@ export default defineComponent({
 
 video,
 img {
-  width: 100%;
-  height: 100%;
+  width: 300px;
+  height: 300px;
+  max-width: -webkit-fill-available !important;
+  max-height: 300px !important;
   object-fit: cover;
 }
 

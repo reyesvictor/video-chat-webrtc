@@ -1,6 +1,11 @@
 <template>
   <div class="home">
-    <img alt="Vue logo" src="../assets/logo.png" />
+    <!-- <img alt="Vue logo" src="../assets/logo.png" /> -->
+    <img
+      alt="Boom logo"
+      src="https://www.pngplay.com/wp-content/uploads/1/Letter-B-PNG-Stock-Photo.png"
+      id="logo"
+    />
     <HomePage msg="Welcome to Your Vue.js + TypeScript App" />
   </div>
 </template>
@@ -16,3 +21,9 @@ export default defineComponent({
   },
 });
 </script>
+
+<style lang="scss" scoped>
+#logo {
+  height: 150px;
+}
+</style>
