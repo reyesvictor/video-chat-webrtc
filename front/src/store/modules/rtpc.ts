@@ -10,22 +10,15 @@ interface IceServer {
   urls: string;
 }
 
-interface Media {
-  audio: boolean;
-  video: {
-    width: number;
-    height: number;
-  };
-}
-
-interface State {
+interface RTCPState {
   peers: Peer[];
   iceServers: IceServer[];
   user: {
-    media: Media;
-    stream: MediaStream;
-    // video
-    // stream
+    media: MyMedia;
+    streams: {
+      cam: MediaStream;
+      screen: MediaStream;
+    };
   };
 }
 
@@ -38,6 +31,9 @@ navigator.getUserMedia =
   navigator.mozGetUserMedia ||
   // @ts-ignore
   navigator.msGetUserMedia;
+
+import { getCamStream, getScreenStream } from "@/services/streams";
+import { MyMedia, MyMediaStream } from "@/types";
 
 export default {
   namespaced: true,
@@ -59,70 +55,59 @@ export default {
     },
     user: {
       media: {
-        type: {} as Media,
-        default: {
-          audio: false, // set to true for the others
-          video: {
-            width: 176,
-            height: 144,
-          },
+        audio: false, // set to true for the others
+        video: {
+          width: 176,
+          height: 144,
         },
       },
-      video: {},
-      stream: {
-        type: MediaStream,
-        required: false,
+      streams: {
+        cam: {
+          type: MediaStream,
+          required: false,
+        },
+        screen: {
+          type: MediaStream,
+          required: false,
+        },
       },
     },
   },
   mutations: {
-    START_VIDEO(state: State, stream: MediaStream) {
-      state.user.stream = stream;
+    START_CAM_VIDEO(state: RTCPState, stream: MediaStream) {
+      state.user.streams.cam = stream;
+      // set srcObject
+      // play()
+    },
+    START_SCREEN_VIDEO(state: RTCPState, stream: MediaStream) {
+      state.user.streams.screen = stream;
       // set srcObject
       // play()
     },
   },
   actions: {
-    async startUserVideo({ state, getters, commit }: any) {
-     
+    async startCamVideo({ state, getters, dispatch, commit }: any) {
+      const stream: MyMediaStream = await getCamStream(state.user.media);
+
+      if (!stream) return;
+
+      commit("START_CAM_VIDEO", stream);
+      console.log("START_CAM_VIDEO", stream);
     },
-    async startScreenVideo({ state, getters, commit }: any) {
+    async startScreenVideo({ state, getters, dispatch, commit }: any) {
       // should I get the stream before and then only send the stream payload to the action ?
-      console.log("startVideo in store");
-      const stream = getters.getScreenStream();
+      // or create another module specific for streams
+      const stream: MyMediaStream = await getScreenStream();
 
       if (!stream) return false;
 
-      commit("START_VIDEO", stream);
+      commit("START_SCREEN_VIDEO", stream);
       return true;
     },
   },
   getters: {
-    async getUserStream(state: State): Promise<MediaStream | boolean> {
-      
-    },
-    async getScreenStream(state: State): Promise<MediaStream | boolean> {
-      let stream;
-      if (navigator.mediaDevices) {
-        try {
-          // @ts-ignore
-          stream = await navigator.mediaDevices.getDisplayMedia();
-        } catch (err) {
-          st("error", err);
-          return false;
-        }
-      } else {
-        try {
-          // @ts-ignore
-          stream = await navigator.getUserMedia(state.user.media);
-        } catch (err) {
-          st("error", err);
-          return false;
-        }
-      }
-
-      console.log("getStream", stream);
-      return stream;
+    getCam(state: RTCPState): MediaStream {
+      return state.user.streams.cam;
     },
   },
 };

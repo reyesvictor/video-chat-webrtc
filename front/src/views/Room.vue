@@ -1,10 +1,10 @@
 <template>
   This is a room 😎
   <div id="video-grid">
-    <video id="user-video" :src-object="srcObject"></video>
+    <video id="user-video" ref="camVideo" :src-object="srcObject">Test</video>
   </div>
-  <button class="btn btn-success mb-2" @click="startVideo">
-    Connect Video
+  <button class="btn btn-success mb-2" @click="startCamVideo">
+    Connect My Camera
   </button>
   <br />
   <input type="text" value="Random" id="newNameInput" />
@@ -21,14 +21,22 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, reactive, toRefs } from "vue";
+import { ref, defineComponent, reactive, toRefs } from "vue";
 import { useStore } from "vuex";
+
+interface CamVideoRef {
+  srcObject: MediaStream;
+  muted: boolean;
+  onloadedmetadata: (e: any) => void;
+  play: () => void;
+}
 
 export default defineComponent({
   name: "Room",
   components: {},
   setup() {
-    const store = useStore();
+    const camVideo = ref<null | CamVideoRef>(null);
+    const store: any = useStore();
     const state = reactive({
       srcObject: {
         type: MediaStream,
@@ -36,15 +44,23 @@ export default defineComponent({
       },
     });
 
-    const startVideo = (): void => {
-      console.log("startVideo");
-      const res = store.dispatch("rtcp/startVideo");
+    const startCamVideo = () => store.dispatch("rtcp/startCamVideo");
 
-      console.log("Room.vue startVideo", res);
-    };
+    store.watch(
+      () => store.getters["rtcp/getCam"],
+      (stream: MediaStream) => {
+        const videoHTML = camVideo.value;
+        if (stream && videoHTML) {
+          videoHTML.srcObject = stream;
+          videoHTML.muted = true;
+          videoHTML.onloadedmetadata = (e) => e.target.play();
+        }
+      }
+    );
 
     return {
-      startVideo,
+      camVideo,
+      startCamVideo,
       ...toRefs(state),
     };
   },

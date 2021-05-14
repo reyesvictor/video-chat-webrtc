@@ -62,6 +62,7 @@ const getMediaDevices = async () => {
 };
 
 const getMediaDevicesSuccessCreated = (stream) => {
+  console.log(typeof stream, stream);
   userStream = stream;
   divVideoChatLobby.style = "display:none";
   userVideo.srcObject = stream;
