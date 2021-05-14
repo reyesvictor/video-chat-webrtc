@@ -23,20 +23,22 @@ app.get("/generate-room", (req, res) => {
   const newUrl = uuidV4();
   res.send(`/${newUrl}`);
   authorizedLinks.push(newUrl);
-  console.log(authorizedLinks);
+  console.log('authorizedLinks', authorizedLinks);
   res.end();
 });
 
-app.get("/:room", (req, res) => {
+app.get("/r/:room", (req, res) => {
   if (authorizedLinks.includes(req.params.room)) {
-    console.log('authorized');
+    console.log('Joining room through link: ' + req.params.room);
 
-    res.redirect('https://www.yahoo.fr/');
+    // res.redirect('https://www.yahoo.fr/');
     res.end();
     return;
   }
 
-  res.redirect('https://www.google.fr/');
+  console.log('Invalid link: ' + req.params.room);
+
+  // res.redirect('https://www.google.fr/');
   res.end()
 
   // res.render("room", { roomName: req.params.room });
@@ -76,6 +78,46 @@ io.on("connection", function (socket) {
     });
   });
 
+  socket.on("vue-create", function (callback) {
+    const newUrl = uuidV4();
+
+    try {
+      authorizedLinks.push(newUrl);
+      console.log('authorizedLinks', authorizedLinks);
+      socket.join(newUrl);
+
+      let rooms = io.sockets.adapter.rooms;
+      let room = rooms.get(newUrl);
+      console.log("room", room);
+      callback({ success: 'Room was created', id: newUrl })
+    }
+    catch (err) {
+      callback({ err });
+    }
+
+    socket.on("disconnect", () => {
+      socket.to(newUrl).emit("user-disconnected", userId);
+    });
+  });
+
+  socket.on("vue-join", function (roomName, callback) {
+    try {
+      socket.join(roomName);
+      let rooms = io.sockets.adapter.rooms;
+      let room = rooms.get(roomName);
+      console.log("room", room);
+      callback({ success: 'Joined succesfully' })
+      // emit
+      socket.to(roomName).emit("ready", userId); //Informs the other peer in the room.
+    }
+    catch (err) {
+      callback({ err });
+    }
+    socket.on("disconnect", () => {
+      socket.to(roomName).emit("user-disconnected", userId);
+    });
+  });
+
   //Triggered when the person who joined the room is ready to communicate.
   socket.on("ready", function (roomName) {
     console.log("ready");
@@ -107,9 +149,14 @@ io.on("connection", function (socket) {
     socket.to(userToReplyTo).emit("answer", answer, userId); //Sends Answer to the other peer in the room.
   });
 
-  socket.on("force-disconnect", () => {
-    socket.disconnect();
-    console.log('rooms', io.sockets.adapter.rooms);
+  socket.on("force-disconnect", (callback) => {
+    try {
+      socket.disconnect();
+      console.log('rooms', io.sockets.adapter.rooms);
+      callback({ success: 'Disconnected' })
+    } catch (err) {
+      callback({ err })
+    }
   });
 
   socket.on("name", (roomName, newName) => {

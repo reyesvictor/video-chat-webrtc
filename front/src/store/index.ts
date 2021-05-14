@@ -1,14 +1,12 @@
 import { createStore } from "vuex";
-import room from "./modules/room";
-import rtcp from "./modules/rtpc";
+import room from "./modules/RoomStore";
+import rtcp from "./modules/RTCPStore";
+import socket from "./modules/SocketStore";
 
 export default createStore({
-  state: {},
-  mutations: {},
-  actions: {},
-  getters: {},
   modules: {
     room,
     rtcp,
+    socket,
   },
 });

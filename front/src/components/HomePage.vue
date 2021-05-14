@@ -25,7 +25,8 @@ export default defineComponent({
 
     const createRoom = (): void => {
       console.log("createRoom");
-      store.dispatch("room/createRoom");
+      store.dispatch("socket/connect");
+      store.dispatch("socket/create");
     };
 
     return {

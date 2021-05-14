@@ -1,39 +1,75 @@
 <template>
   This is a room 😎
+  <br />
+  <a :href="'/r/' + $route.params.id" target="_blank">Share !</a>
   <div id="video-grid">
     <video id="user-video" ref="camVideo"></video>
     <video id="screen-video" ref="screenVideo"></video>
   </div>
-  <button v-if="!isCamOn" class="btn btn-success mb-2" @click="startCamVideo">
-    Show My Camera
-  </button>
-  <button v-else class="btn btn-success mb-2" @click="startCamVideo">
-    Hide My Camera
-  </button>
-  <button v-if="!isScreenOn" class="btn btn-success mb-2" @click="startScreenVideo">
-    Share My Screen
-  </button>
-    <button v-else class="btn btn-success mb-2" @click="startScreenVideo">
-    Hide My Screen
-  </button>
-  <br />
-  <input type="text" value="Random" id="newNameInput" />
-  <button type="button" id="newNameButton">Submit new name 🏷</button>
-  <br />
-  <br />
-  <button type="button" id="hangUp">Hang Up ☎</button>
-  <br />
-  <button type="button" id="hideVideo">Hide Video 📹</button>
-  <button type="button" id="showVideo">Show Video 📽</button>
-  <br />
-  <button type="button" id="muteAudio">muteAudio 🔇</button>
-  <button type="button" id="enableAudio">enableAudio 🔊</button>
+  <div id="buttons-container">
+    <button v-if="!isCamOn" class="btn btn-success mb-2" @click="startCamVideo">
+      👁 Let's start my Camera
+    </button>
+    <button
+      v-if="isCamOn && isCamHidden"
+      class="btn btn-primary mb-2"
+      @click="showVideo"
+    >
+      👁 Show My Camera
+    </button>
+    <button
+      v-else-if="isCamOn && !isCamHidden"
+      class="btn btn-secondary mb-2"
+      @click="hideVideo"
+    >
+      🙈Hide My Camera
+    </button>
+    <br />
+    <button
+      v-if="!isScreenOn"
+      class="btn btn-success mb-2"
+      @click="startScreenVideo"
+    >
+      Share My Screen
+    </button>
+    <button v-else class="btn btn-secondary mb-2" @click="startScreenVideo">
+      Hide My Screen
+    </button>
+    <br />
+    <!-- <input type="text" value="Random" id="newNameInput" /> -->
+    <!-- <button type="button" id="newNameButton">Submit new name 🏷</button> -->
+    <!-- <br />
+    <br /> -->
+    <button
+      type="button"
+      class="btn btn-warning"
+      id="muteAudio"
+      v-if="!isAudioMute"
+      @click="muteAudio"
+    >
+      muteAudio 🔇
+    </button>
+    <button
+      type="button"
+      class="btn btn-warning"
+      id="enableAudio"
+      v-else
+      @click="enableAudio"
+    >
+      enableAudio 🔊
+    </button>
+    <br />
+    <button type="button" class="btn btn-danger mt-2" @click="hangUp">
+      Hang Up ☎
+    </button>
+  </div>
 </template>
 
 <script lang="ts">
-import st from "../services/swalToast";
+import { toast } from "../services/ToastService";
 import { ref, defineComponent, reactive, toRefs } from "vue";
 import { useStore } from "vuex";
+import router from "../../src/router/index";
 
 interface VideoHTMLRef {
   srcObject: MediaStream;
@@ -55,24 +91,52 @@ export default defineComponent({
         required: false,
       },
       isCamOn: false,
+      isCamHidden: false,
       isScreenOn: false,
+      isAudioMute: false,
     });
 
     const startCamVideo = () => store.dispatch("rtcp/startCamVideo");
     const startScreenVideo = () => store.dispatch("rtcp/startScreenVideo");
+
+    const hideVideo = async () => {
+      const success = await store.dispatch("rtcp/hideVideo");
+      if (success) state.isCamHidden = true;
+    };
+
+    const showVideo = async () => {
+      const success = await store.dispatch("rtcp/showVideo");
+      if (success) state.isCamHidden = false;
+    };
+
+    const muteAudio = async () => {
+      const success = await store.dispatch("rtcp/muteAudio");
+      if (success) state.isAudioMute = true;
+    };
+
+    const enableAudio = async () => {
+      const success = await store.dispatch("rtcp/enableAudio");
+      if (success) state.isAudioMute = false;
+    };
+
+    const hangUp = async () => {
+      store.dispatch("rtcp/hangUp");
+      const success = await store.dispatch("socket/hangUp");
+      if (success) router.push({ name: "Home" });
+    };
 
     store.watch(
       () => store.getters["rtcp/getCam"],
       (stream: MediaStream) => {
         const videoHTML = camVideo.value;
         if (stream && videoHTML) {
-          try{
+          try {
             videoHTML.srcObject = stream;
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
             state.isCamOn = true;
-          }catch(err){
-            st('error', err);
+          } catch (err) {
+            toast("error", err);
           }
         }
       }
@@ -82,22 +146,27 @@ export default defineComponent({
       () => store.getters["rtcp/getScreen"],
       (stream: MediaStream) => {
         const videoHTML = screenVideo.value;
-        console.log('watcher', stream, videoHTML)
+        console.log("watcher", stream, videoHTML);
         if (stream && videoHTML) {
-          try{
+          try {
             videoHTML.srcObject = stream;
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
             state.isScreenOn = true;
-          }catch(err){
-            st('error', err);
+          } catch (err) {
+            toast("error", err);
           }
         }
       }
     );
 
     return {
+      hangUp,
       camVideo,
+      hideVideo,
+      showVideo,
+      muteAudio,
+      enableAudio,
       screenVideo,
       startCamVideo,
       startScreenVideo,
@@ -127,5 +196,11 @@ img {
 
 #screen-video {
   background: green;
+}
+
+#buttons-container {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
 }
 </style>
