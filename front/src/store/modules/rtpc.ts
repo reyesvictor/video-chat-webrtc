@@ -76,38 +76,29 @@ export default {
   mutations: {
     START_CAM_VIDEO(state: RTCPState, stream: MediaStream) {
       state.user.streams.cam = stream;
-      // set srcObject
-      // play()
     },
     START_SCREEN_VIDEO(state: RTCPState, stream: MediaStream) {
       state.user.streams.screen = stream;
-      // set srcObject
-      // play()
     },
   },
   actions: {
-    async startCamVideo({ state, getters, dispatch, commit }: any) {
+    async startCamVideo({ state, commit }: any) {
       const stream: MyMediaStream = await getCamStream(state.user.media);
-
-      if (!stream) return;
-
-      commit("START_CAM_VIDEO", stream);
-      console.log("START_CAM_VIDEO", stream);
+      if (stream) commit("START_CAM_VIDEO", stream);
     },
-    async startScreenVideo({ state, getters, dispatch, commit }: any) {
+    async startScreenVideo({ commit }: any) {
       // should I get the stream before and then only send the stream payload to the action ?
       // or create another module specific for streams
       const stream: MyMediaStream = await getScreenStream();
-
-      if (!stream) return false;
-
-      commit("START_SCREEN_VIDEO", stream);
-      return true;
+      if (stream) commit("START_SCREEN_VIDEO", stream);
     },
   },
   getters: {
     getCam(state: RTCPState): MediaStream {
       return state.user.streams.cam;
+    },
+    getScreen(state: RTCPState): MediaStream {
+      return state.user.streams.screen;
     },
   },
 };

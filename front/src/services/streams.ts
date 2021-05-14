@@ -23,7 +23,6 @@ export const getCamStream = async (media: MyMedia): Promise<MyMediaStream> => {
     }
   }
 
-  console.log("getStream", stream);
   return stream;
 };
 
@@ -47,6 +46,5 @@ export const getScreenStream = async (): Promise<boolean | MediaStream> => {
     }
   }
 
-  console.log("getStream", stream);
   return stream;
 };
