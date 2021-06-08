@@ -4,5 +4,8 @@
     "swal",
     "sweetalert",
     "vuex"
+  ],
+  "cSpell.ignoreWords": [
+    "logrocket"
   ]
 }
