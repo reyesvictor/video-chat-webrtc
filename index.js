@@ -4,7 +4,6 @@ const app = express();
 const { v4: uuidV4 } = require("uuid");
 
 //Starts the server
-
 let server = app.listen(4000, function () {
   console.log("Server is running");
 });
@@ -12,7 +11,6 @@ let server = app.listen(4000, function () {
 app.use(express.static("public"));
 
 //Upgrades the server to accept websockets.
-
 let io = socket(server);
 
 // Store in database
@@ -100,15 +98,17 @@ io.on("connection", function (socket) {
     });
   });
 
-  socket.on("vue-join", function (roomName, callback) {
+  socket.on("vue-join", function (roomName, joinedStreamType, callback) {
     try {
+      console.log('vue-join');
       socket.join(roomName);
       let rooms = io.sockets.adapter.rooms;
       let room = rooms.get(roomName);
       console.log("room", room);
-      callback({ success: 'Joined succesfully' })
+      callback({ success: 'Joined successfully' })
       // emit
-      socket.to(roomName).emit("ready", userId); //Informs the other peer in the room.
+      console.log('ready joinedStreamType', joinedStreamType);
+      socket.to(roomName).emit("ready", userId, joinedStreamType); //Informs the other peer in the room.
     }
     catch (err) {
       callback({ err });
@@ -126,27 +126,27 @@ io.on("connection", function (socket) {
 
   //Triggered when server gets an icecandidate from a peer in the room.
 
-  socket.on("candidate", function (candidate, userToReplyTo) {
+  socket.on("candidate", function (candidate, userToReplyTo, streamCommunication) {
     console.log("candidate", candidate.candidate);
     // console.log(candidate);
-    socket.to(userToReplyTo).emit("candidate", candidate, userId); //Sends Candidate to the other peer in the room.
+    //Sends Candidate to the other peer in the room.
+    socket.to(userToReplyTo).emit("candidate", candidate, userId, streamCommunication);
   });
 
   //Triggered when server gets an offer from a peer in the room.
-
-  socket.on("offer", (offer, userToReplyTo) => {
+  socket.on("offer", (offer, userToReplyTo, streamCommunication) => {
     console.log("offer");
 
     // x1
-    socket.to(userToReplyTo).emit("offer", offer, userId); //Sends Offer to the other peer in the room.
+    socket.to(userToReplyTo).emit("offer", offer, userId, streamCommunication); //Sends Offer to the other peer in the room.
   });
 
   //Triggered when server gets an answer from a peer in the room.
 
-  socket.on("answer", function (answer, userToReplyTo) {
+  socket.on("answer", function (answer, userToReplyTo, streamCommunication) {
     console.log("answer");
     // x1
-    socket.to(userToReplyTo).emit("answer", answer, userId); //Sends Answer to the other peer in the room.
+    socket.to(userToReplyTo).emit("answer", answer, userId, streamCommunication); //Sends Answer to the other peer in the room.
   });
 
   socket.on("force-disconnect", (callback) => {

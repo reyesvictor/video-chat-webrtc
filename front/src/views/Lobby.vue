@@ -1,5 +1,5 @@
 <template>
-  This is a room 😎
+  This is THE LOBBY 😎
 
   <button @click="join">Join</button>
   <br />
@@ -42,6 +42,7 @@
 import { toast } from "../services/ToastService";
 import { ref, defineComponent, reactive, toRefs } from "vue";
 import { useStore } from "vuex";
+import { CAM_TYPE, SCREEN_TYPE } from "../store/modules/utils";
 
 interface VideoHTMLRef {
   srcObject: MediaStream;
@@ -66,13 +67,18 @@ export default defineComponent({
       isScreenOn: false,
     });
 
+    // TODO factorize this function with the same inside ROOM.vue
     const join = () => {
       store.dispatch("socket/connect");
-      store.dispatch("socket/join");
+      // TODO setup up empty video when joining room
+      // store.dispatch("rtcCam/setEmptyStream");
+      // store.dispatch("rtcScreen/setEmptyStream");
+      console.log("Lobby.vue -> join() ", CAM_TYPE);
+      // store.dispatch("socket/join", CAM_TYPE);
     };
 
-    const startCamVideo = () => store.dispatch("rtcp/startCamVideo");
-    const startScreenVideo = () => store.dispatch("rtcp/startScreenVideo");
+    const startCamVideo = () => store.dispatch("rtcCam/startVideo");
+    const startScreenVideo = () => store.dispatch("rtcScreen/startVideo");
 
     store.watch(
       () => store.getters["rtcp/getCam"],
@@ -84,7 +90,8 @@ export default defineComponent({
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
             state.isCamOn = true;
-          } catch (err) {
+            store.dispatch("socket/join", SCREEN_TYPE, { root: true });
+          } catch (err: any) {
             toast("error", err);
           }
         }
@@ -102,7 +109,7 @@ export default defineComponent({
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
             state.isScreenOn = true;
-          } catch (err) {
+          } catch (err: any) {
             toast("error", err);
           }
         }

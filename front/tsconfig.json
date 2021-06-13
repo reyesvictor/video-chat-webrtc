@@ -28,7 +28,8 @@
     "src/components/RoomPage.vue",
     "src/components/Room.vue",
     "src/views/Lobby.vue",
-    "src/views/Lob.vue"
+    "src/views/Lob.vue",
+    "src/components/RoomStreamAction.vue"
   ],
   "exclude": ["node_modules"]
 }

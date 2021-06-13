@@ -1,26 +1,25 @@
-import { RoomState } from "./types";
 import { toast } from "../../services/ToastService";
-import axios from "axios";
-import router from "@/router";
+import { RTCState } from "./types";
 
-interface State {
-  room: RoomState;
+interface UserState {
+  cam_rtc: RTCState;
+  screen_rtc: RTCState;
 }
 
-// is this useful ??/
 export default {
   namespaced: true,
   state: {
-    room: {
-      type: {} as RoomState,
-      required: true,
+    cam_rtc: {
+      type: {} as RTCState,
+    },
+    screen_rtc: {
+      type: {} as RTCState,
     },
   },
   mutations: {
-    CREATE_ROOM(state: State, payload: string) {
-      state.room.id = payload;
+    ADD_CAM_STREAM(state: UserState, payload: string) {
+      // state.room.id = payload;
     },
-    // JOIN_ROOM
   },
   actions: {
     // createRoom({ commit, dispatch }: any) {

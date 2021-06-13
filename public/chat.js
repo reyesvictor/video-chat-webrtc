@@ -113,6 +113,7 @@ socket.on("ready", function (userId) {
   peers[userId].onicecandidate = (e) => OnIceCandidateFunction(e, userId);
   peers[userId].ontrack = (e) => OnTrackFunction(e, userId);
 
+  console.log(userStream, userStream.getTracks());
   userStream.getTracks().forEach((track) => {
     peers[userId].addTrack(track, userStream); // type : MediaStreamTrack
   });

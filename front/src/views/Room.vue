@@ -71,6 +71,7 @@ import { toast } from "../services/ToastService";
 import { ref, defineComponent, reactive, toRefs } from "vue";
 import { useStore } from "vuex";
 import router from "../../src/router/index";
+import { CAM_TYPE, SCREEN_TYPE } from "../store/modules/utils";
 
 interface VideoHTMLRef {
   srcObject: MediaStream;
@@ -98,39 +99,39 @@ export default defineComponent({
       hasJoined: false,
     });
 
-    const startCamVideo = () => store.dispatch("rtcp/startCamVideo");
+    const startCamVideo = () => store.dispatch("rtcCam/startVideo");
     const startScreenVideo = () => {
-      store.dispatch("rtcp/startScreenVideo");
+      store.dispatch("rtcScreen/startVideo");
     };
 
     const hideVideo = async () => {
-      const success = await store.dispatch("rtcp/hideVideo");
+      const success = await store.dispatch("rtcCam/hideVideo");
       if (success) state.isCamHidden = true;
     };
 
     const showVideo = async () => {
-      const success = await store.dispatch("rtcp/showVideo");
+      const success = await store.dispatch("rtcCam/showVideo");
       if (success) state.isCamHidden = false;
     };
 
     const muteAudio = async () => {
-      const success = await store.dispatch("rtcp/muteAudio");
+      const success = await store.dispatch("rtcCam/muteAudio");
       if (success) state.isAudioMute = true;
     };
 
     const enableAudio = async () => {
-      const success = await store.dispatch("rtcp/enableAudio");
+      const success = await store.dispatch("rtcCam/enableAudio");
       if (success) state.isAudioMute = false;
     };
 
     const hangUp = async () => {
-      store.dispatch("rtcp/hangUp");
+      store.dispatch("rtcCam/hangUp");
       const success = await store.dispatch("socket/hangUp");
       if (success) router.push({ name: "Home" });
     };
 
     store.watch(
-      () => store.getters["rtcp/getCam"],
+      () => store.getters["rtcCam/getStream"],
       (stream: MediaStream) => {
         const videoHTML = camVideo.value;
         if (stream && videoHTML) {
@@ -139,7 +140,7 @@ export default defineComponent({
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
             state.isCamOn = true;
-          } catch (err) {
+          } catch (err: any) {
             toast("error", err);
           }
         }
@@ -147,7 +148,7 @@ export default defineComponent({
     );
 
     store.watch(
-      () => store.getters["rtcp/getScreen"],
+      () => store.getters["rtcScreen/getStream"],
       (stream: MediaStream) => {
         const videoHTML = screenVideo.value;
         console.log("watcher", stream, videoHTML);
@@ -157,7 +158,8 @@ export default defineComponent({
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
             state.isScreenOn = true;
-          } catch (err) {
+            store.dispatch("socket/join", SCREEN_TYPE, { root: true });
+          } catch (err: any) {
             toast("error", err);
           }
         }
@@ -167,7 +169,12 @@ export default defineComponent({
     const join = async () => {
       store.dispatch("socket/connect"); // WARNING DOUBLE CONNECT IF THE SAME PERSON CREATED THE ROOM
 
-      const success = await store.dispatch("socket/join");
+      // store.dispatch("rtcCam/setEmptyStream");
+      // store.dispatch("rtcScreen/setEmptyStream");
+
+      const success = await store.dispatch("socket/join", CAM_TYPE);
+
+      // TODO movie hasJoined inside a STORE like SOCKETSTORE
       if (success) state.hasJoined = true;
     };
 
@@ -200,6 +207,7 @@ img {
   width: 300px;
   height: 300px;
   max-width: -webkit-fill-available !important;
+  width: -webkit-fill-available !important;
   max-height: 300px !important;
   object-fit: cover;
 }

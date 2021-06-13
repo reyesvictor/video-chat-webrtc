@@ -2,6 +2,16 @@ import { MyMedia, MyMediaStream } from "@/types";
 
 import { toast } from "./ToastService";
 
+// @ts-ignore
+navigator.getUserMedia =
+  navigator.getUserMedia ||
+  // @ts-ignore
+  navigator.webkitGetUserMedia ||
+  // @ts-ignore
+  navigator.mozGetUserMedia ||
+  // @ts-ignore
+  navigator.msGetUserMedia;
+
 export const getCamStream = async (media: MyMedia): Promise<MyMediaStream> => {
   let stream;
 
@@ -9,7 +19,7 @@ export const getCamStream = async (media: MyMedia): Promise<MyMediaStream> => {
     try {
       // @ts-ignore
       stream = await navigator.mediaDevices.getUserMedia(media);
-    } catch (err) {
+    } catch (err: any) {
       toast("error", err);
       return false;
     }
@@ -17,7 +27,7 @@ export const getCamStream = async (media: MyMedia): Promise<MyMediaStream> => {
     try {
       // @ts-ignore
       stream = await navigator.getUserMedia(media);
-    } catch (err) {
+    } catch (err: any) {
       toast("error", err);
       return false;
     }
@@ -32,7 +42,7 @@ export const getScreenStream = async (): Promise<boolean | MediaStream> => {
     try {
       // @ts-ignore
       stream = await navigator.mediaDevices.getDisplayMedia();
-    } catch (err) {
+    } catch (err: any) {
       toast("error", err);
       return false;
     }
@@ -40,7 +50,7 @@ export const getScreenStream = async (): Promise<boolean | MediaStream> => {
     try {
       // @ts-ignore
       stream = await navigator.getDisplayMedia();
-    } catch (err) {
+    } catch (err: any) {
       toast("error", err);
       return false;
     }
