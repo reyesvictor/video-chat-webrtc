@@ -3,8 +3,8 @@ let divVideoChatLobby = document.getElementById("video-chat-lobby");
 let divVideoChat = document.getElementById("video-grid");
 let joinButton = document.getElementById("join");
 let userVideo = document.getElementById("user-video");
-let roomInput = document.getElementById("roomName");
-let roomName;
+let roomInput = document.getElementById("roomId");
+let roomId;
 let creator = false;
 let peers = {};
 let userStream;
@@ -33,8 +33,8 @@ joinButton.addEventListener("click", function () {
   if (roomInput.value == "") {
     alert("Please enter a room name");
   } else {
-    roomName = roomInput.value;
-    socket.emit("join", roomName);
+    roomId = roomInput.value;
+    socket.emit("join", roomId);
   }
 });
 
@@ -80,7 +80,7 @@ const getMediaDevicesSuccessJoined = (stream) => {
     userVideo.play();
   };
 
-  socket.emit("ready", roomName);
+  socket.emit("ready", roomId);
 };
 
 const getMediaDevicesError = (err) => alert("Couldn't Access User Media");
@@ -213,7 +213,7 @@ document.getElementById("hangUp").addEventListener("click", (e) => {
 
   if (quit) {
     userStream.getTracks().forEach(track => track.stop());
-    socket.emit("force-disconnect", roomName);
+    socket.emit("force-disconnect", roomId);
     Object.keys(peers).forEach((id) => peers[id].close());
     document.body.innerHTML = "<p>Disconnected</p><br/><button onclick=\"window.location.reload()\">Go back to homepage</button>";
   }
@@ -230,7 +230,7 @@ document.getElementById("hideVideo").addEventListener("click", () => {
     });
   });
 
-  socket.emit('hideVideo', roomName);
+  socket.emit('hideVideo', roomId);
 });
 
 document.getElementById("showVideo").addEventListener("click", () => {
@@ -243,7 +243,7 @@ document.getElementById("showVideo").addEventListener("click", () => {
     });
   });
 
-  socket.emit('showVideo', roomName);
+  socket.emit('showVideo', roomId);
 });
 
 // alternatives : removeTrack ou replaceTrack...
@@ -270,7 +270,7 @@ document.getElementById("enableAudio").addEventListener("click", () => {
 });
 
 document.getElementById("newNameButton").addEventListener("click", () => {
-  socket.emit("name", roomName, document.getElementById("newNameInput").value);
+  socket.emit("name", roomId, document.getElementById("newNameInput").value);
 });
 
 socket.on("name", function (userId, newName) {

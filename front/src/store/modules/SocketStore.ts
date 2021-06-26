@@ -1,14 +1,19 @@
-import { CAM_TYPE, SCREEN_TYPE, STREAMS_TYPE } from "./utils";
-import { getScreenStream } from "@/services/StreamService";
-import { toast } from "../../services/ToastService";
+import {
+  sendCamAnswer,
+  sendCamOffer,
+  sendScreenAnswer,
+  iceServers,
+  sendScreenOffer,
+} from "./../../services/RTCService";
+import {
+  CAM_TYPE,
+  handleCatch,
+  handleSocketResult,
+  SCREEN_TYPE,
+} from "./utils";
 import io, { Socket } from "socket.io-client";
 import router from "@/router/index";
-import {
-  OnIceCandidateFunction,
-  OnTrackFunction,
-} from "../../services/RTCService";
-import { IceServer, StreamCommunication } from "./types";
-import { stringifyQuery } from "vue-router";
+import { StreamTrade } from "./types";
 
 const myIO: any = io;
 
@@ -17,148 +22,81 @@ interface SocketState {
 }
 
 interface SocketCallback {
-  id: string;
+  roomId: string;
   err: string;
   success: string;
 }
-
-const iceServers: IceServer[] = [
-  {
-    urls: "stun:stun.services.mozilla.com",
-  },
-  {
-    urls: "stun:stun.l.google.com:19302",
-  },
-];
 
 const configuration: RTCConfiguration = { iceServers };
 
 export default {
   namespaced: true,
   state: {
-    socket: {
-      type: Socket,
-      required: false,
-    },
+    socket: Socket,
   },
   mutations: {
     CONNECT(state: SocketState) {
       state.socket = myIO.connect(
         // local test
+        // "https://e5bd0781885f.ngrok.io" ??
         "http://localhost:4000" ??
           "http://" + window.location.hostname + ":4000"
       );
     },
   },
   actions: {
-    connect({ state, commit, getters, rootState }: any) {
+    connect({ state, commit, getters, rootState, dispatch }: any) {
+      if (state.socket?.connected) {
+        return;
+      }
+
       commit("CONNECT");
-
-      console.log("connect 🎃");
-
       const socket = state.socket;
-
+      console.log("socket/connect 🎃");
       const camPeers = getters.getCamPeers;
       const screenPeers = getters.getScreenPeers;
-      const cam = getters.getCamStream;
-      const screen = getters.getScreenStream;
 
-      // TODO trigger this ready when adding screen share inside conversation
       socket.on("ready", (userId: string, joinedStreamType: string) => {
         const cam = getters.getCamStream;
-
+        const peerId = userId + joinedStreamType;
         console.log("ready");
 
-        console.log("before cam", cam);
-
-        // TODO this is triggered again when I start screen share after...
         if (rootState.rtcCam.workflow.video.STARTED) {
           console.log("ready rtcCam");
-          // generating offer
+          // TODO this is a state in the store, I should use an action to creation a new peer...
+          camPeers[peerId] = new RTCPeerConnection(configuration);
+          const camPeer = camPeers[peerId];
 
-          camPeers[userId + joinedStreamType] = new RTCPeerConnection(
-            configuration
-          );
-          const camPeer = camPeers[userId + joinedStreamType];
-
-          const streamCommunication = {
-            joined: joinedStreamType,
-            present: CAM_TYPE,
-          };
-
-          camPeer.onicecandidate = (e: any) =>
-            OnIceCandidateFunction(e, userId, state, streamCommunication);
-          camPeer.ontrack = (e: any) =>
-            OnTrackFunction(e, userId, joinedStreamType);
-
-          // if (joinedStreamType === CAM_TYPE) {
-          cam.getTracks().forEach((track: MediaStreamTrack) => {
-            camPeer.addTrack(track, cam);
+          sendCamOffer({
+            joinedStreamType,
+            stream: cam,
+            peer: camPeer,
+            peerId,
+            state,
+            userId,
           });
-          // }
-
-          camPeer
-            .createOffer()
-            .then((offer: any) => {
-              camPeer
-                .setLocalDescription(new RTCSessionDescription(offer))
-                .then(async () => {
-                  state.socket.emit(
-                    "offer",
-                    offer,
-                    userId,
-                    streamCommunication
-                  ); // reply only to user that joined
-                })
-                .catch((err: Error) => console.log(err));
-            })
-            .catch((err: Error) => console.log(err));
         }
 
-        // generating screen offer
         if (
           rootState.rtcScreen.workflow.video.STARTED &&
           joinedStreamType === CAM_TYPE
         ) {
           console.log("ready rtcScreen");
-          screenPeers[userId + joinedStreamType] = new RTCPeerConnection(
-            configuration
-          );
-          const screenPeer = screenPeers[userId + joinedStreamType];
+          // TODO this is a state in the store, I should use an action to creation a new peer...
+          screenPeers[peerId] = new RTCPeerConnection(configuration);
+          const screenPeer = screenPeers[peerId];
 
-          const streamCommunication = {
-            joined: joinedStreamType,
-            present: SCREEN_TYPE,
-          };
-          screenPeer.onicecandidate = (e: any) =>
-            OnIceCandidateFunction(e, userId, state, streamCommunication);
-          // screenPeer.ontrack = (e: any) =>
-          //   OnTrackFunction(e, userId, joinedStreamType);
-
-          screen.getTracks().forEach((track: MediaStreamTrack) => {
-            screenPeer.addTrack(track, screen); // type : MediaStreamTrack
+          sendScreenOffer({
+            joinedStreamType,
+            stream: cam,
+            peer: screenPeer,
+            peerId,
+            state,
+            userId,
           });
-
-          screenPeer
-            .createOffer()
-            .then((offer: any) => {
-              screenPeer
-                .setLocalDescription(new RTCSessionDescription(offer))
-                .then(async () => {
-                  state.socket.emit(
-                    "offer",
-                    offer,
-                    userId,
-                    streamCommunication
-                  ); // reply only to user ready
-                })
-                .catch((err: Error) => console.log(err));
-            })
-            .catch((err: Error) => console.log(err));
         }
       });
 
-      // put this in types file
       interface MyRTCOffer extends RTCSessionDescription {
         streamType?: string;
       }
@@ -166,118 +104,49 @@ export default {
       // TODO rename offer to rtc session description... ==> not clear my dude its wednesday
       socket.on(
         "offer",
-        (
-          offer: MyRTCOffer,
-          userId: string,
-          streamCommunication: StreamCommunication
-        ) => {
-          console.log("offer");
+        (offer: MyRTCOffer, userId: string, streamTrade: StreamTrade) => {
+          console.log("offer -> creating answer");
+          const peerId = userId + streamTrade.present;
 
-          // Cam
           if (
             rootState.rtcCam.workflow.video.STARTED &&
-            streamCommunication.joined === CAM_TYPE
+            streamTrade.joined === CAM_TYPE
           ) {
             console.log("offer rtcCam inside");
 
-            // TODO move all this code camPeers[] and screenPeers[] inside their respective actions and mutations
-            camPeers[userId + streamCommunication.present] =
-              new RTCPeerConnection(configuration);
-            const camPeer = camPeers[userId + streamCommunication.present];
-            camPeer.onicecandidate = (e: any) =>
-              OnIceCandidateFunction(e, userId, state, streamCommunication);
+            // TODO move this into action to create the peer inside state with a MUTATION
+            camPeers[peerId] = new RTCPeerConnection(configuration);
+            const camPeer = camPeers[peerId];
+            const cam = getters.getCamStream;
 
-            camPeer.ontrack = (e: any) =>
-              OnTrackFunction(e, userId, streamCommunication.joined);
-
-            cam.getTracks().forEach((track: MediaStreamTrack) => {
-              camPeer.addTrack(track, cam);
+            sendCamAnswer({
+              peer: camPeer,
+              stream: cam,
+              userId,
+              state,
+              streamTrade,
+              offer,
             });
-            camPeer
-              .setRemoteDescription(new RTCSessionDescription(offer))
-              .then(async () => {
-                camPeer
-                  .createAnswer()
-                  .then((answer: RTCSessionDescription) => {
-                    // verify if type is correct
-                    camPeer.setLocalDescription(answer).catch((err: string) => {
-                      console.log(err);
-                      toast("error", err);
-                    });
-
-                    state.socket.emit(
-                      "answer",
-                      answer,
-                      userId,
-                      streamCommunication
-                    ); // only send answer to specific user
-                  })
-                  .catch((err: string) => {
-                    console.log(err);
-                    toast("error", err);
-                  });
-              })
-              .catch((err: string) => {
-                console.log(err);
-                toast("error", err);
-              });
           }
 
-          // Screen
           if (
             rootState.rtcScreen.workflow.video.STARTED &&
-            streamCommunication.joined === SCREEN_TYPE
+            streamTrade.joined === SCREEN_TYPE
           ) {
             console.log("offer rtcScreen inside");
 
-            screenPeers[userId + streamCommunication.present] =
-              new RTCPeerConnection(configuration);
-            const screenPeer =
-              screenPeers[userId + streamCommunication.present];
-            screenPeer.onicecandidate = (e: any) =>
-              OnIceCandidateFunction(e, userId, state, streamCommunication);
-            // screenPeer.ontrack = (e: any) =>
-            //   OnTrackFunction(e, userId, streamCommunication.joined);
-
+            screenPeers[peerId] = new RTCPeerConnection(configuration);
+            const screenPeer = screenPeers[peerId];
             const screen = getters.getScreenStream;
 
-            console.log(screen);
-
-            screen.getTracks().forEach((track: MediaStreamTrack) => {
-              console.log("screen offer track ", track);
-              screenPeer.addTrack(track, screen);
+            sendScreenAnswer({
+              peer: screenPeer,
+              stream: screen,
+              userId,
+              state,
+              streamTrade,
+              offer,
             });
-
-            screenPeer
-              .setRemoteDescription(new RTCSessionDescription(offer))
-              .then(async () => {
-                screenPeer
-                  .createAnswer()
-                  .then((answer: RTCSessionDescription) => {
-                    // verify if type is correct
-                    screenPeer
-                      .setLocalDescription(answer)
-                      .catch((err: string) => {
-                        console.log(err);
-                        toast("error", err);
-                      });
-
-                    state.socket.emit(
-                      "answer",
-                      answer,
-                      userId, // TODO shouldnt be userId + .joined ?
-                      streamCommunication
-                    ); // only send answer to specific user
-                  })
-                  .catch((err: string) => {
-                    console.log(err);
-                    toast("error", err);
-                  });
-              })
-              .catch((err: string) => {
-                console.log(err);
-                toast("error", err);
-              });
           }
         }
       );
@@ -289,142 +158,109 @@ export default {
         (
           candidate: RTCIceCandidate,
           userId: string,
-          streamCommunication: StreamCommunication
+          streamTrade: StreamTrade
         ) => {
-          console.log("socket.on candidate: ", streamCommunication);
+          console.log("socket.on candidate: ", streamTrade);
 
-          // here streamType is not the good one, i should verify the user that is stream that needs to setup the icecandidate (=== the one who joined the stream)
-          console.log("camPeers", Object.keys(camPeers));
-          console.log(
-            "screenPeers",
-            userId,
-            Object.keys(screenPeers),
-            userId + streamCommunication.present in screenPeers
-          );
+          if (streamTrade.present === CAM_TYPE) {
+            let peer: RTCPeerConnection = new RTCPeerConnection();
+            const peerJoinedID: string = userId + streamTrade.joined;
+            const peerPresentID: string = userId + streamTrade.joined;
 
-          if (streamCommunication.present === CAM_TYPE) {
-            // console.log(Object.keys(camPeers));
-
-            if (userId + streamCommunication.joined in camPeers) {
-              camPeers[userId + streamCommunication.joined]
-                .addIceCandidate(candidate)
-                .catch((err: string) => {
-                  console.log(err);
-                  toast("error", err);
-                });
-            } else if (userId + streamCommunication.present in camPeers) {
-              camPeers[userId + streamCommunication.present]
-                .addIceCandidate(candidate)
-                .catch((err: string) => {
-                  console.log(err);
-                  toast("error", err);
-                });
+            if (peerJoinedID in camPeers) {
+              peer = camPeers[peerJoinedID];
+            } else if (peerPresentID in camPeers) {
+              peer = camPeers[peerPresentID];
             }
-          } else if (streamCommunication.present === SCREEN_TYPE) {
-            // console.log(Object.keys(screenPeers));
-            console.log(
-              "userId + streamCommunication.present in screenPeers 😭😭😭😭😭"
-            );
-
-            screenPeers[userId + streamCommunication.present]
+            peer.addIceCandidate(candidate).catch(handleCatch);
+          } else if (streamTrade.present === SCREEN_TYPE) {
+            screenPeers[userId + streamTrade.present]
               .addIceCandidate(candidate)
-              .catch((err: string) => {
-                console.log(err);
-                toast("error", err);
-              });
+              .catch(handleCatch);
+          } else {
+            handleCatch("❌ Can't set candidate, no peer found");
           }
         }
       );
 
-      // BUG quand premier est en camera et que le deuxieme join en screen
-
-      // needs to know the already present stream type
       socket.on(
         "answer",
         (
           answer: RTCSessionDescription,
           userId: string,
-          streamCommunication: StreamCommunication
+          streamTrade: StreamTrade
         ) => {
-          console.log("answer info ", streamCommunication);
+          console.log("answer || streamTrade: ", streamTrade);
+          let peer: RTCPeerConnection = new RTCPeerConnection();
 
-          if (streamCommunication.present === CAM_TYPE) {
-            camPeers[userId + streamCommunication.joined]
-              .setRemoteDescription(new RTCSessionDescription(answer))
-              .catch((err: string) => {
-                console.log(err);
-                toast("error", err);
-              });
-          } else if (streamCommunication.present === SCREEN_TYPE) {
-            screenPeers[userId + streamCommunication.joined]
-              .setRemoteDescription(new RTCSessionDescription(answer))
-              .catch((err: string) => {
-                console.log(err);
-                toast("error", err);
-              });
+          if (streamTrade.present === CAM_TYPE) {
+            peer = camPeers[userId + streamTrade.joined];
+          } else if (streamTrade.present === SCREEN_TYPE) {
+            peer = screenPeers[userId + streamTrade.joined];
+          } else {
+            handleCatch("❌ No peer to set remote description found");
           }
+
+          peer
+            .setRemoteDescription(new RTCSessionDescription(answer))
+            .catch(handleCatch);
         }
       );
 
+      console.log("socket2", socket);
       // correct this to stream-disconnected
       socket.on("user-disconnected", (userId: string) => {
-        document.getElementById(userId)?.remove();
+        dispatch("socket/closeCamStream", userId, { root: true });
+        dispatch("socket/closeScreenStream", userId, { root: true });
+      });
 
-        const name = document.getElementById("name-" + userId);
-        if (name) name.remove();
+      socket.on("user-screen-share-disconnected", (userId: string) => {
+        console.log("socket.on/user-screen-share-disconnected -> dispatch");
 
-        const img = document.getElementById("img-" + userId);
-        if (img) img.remove();
-
-        state.peers[userId].close();
+        dispatch("socket/closeScreenStream", userId, { root: true });
       });
     },
-    create({ state }: any) {
-      console.log("create 🎃");
+    sendCloseScreenStream({ state, rootState }: any) {
+      console.log("sendCloseScreenStream");
+      const roomId = rootState.room.room.id;
+      console.log(state.socket, "socket");
+      state.socket.emit("user-screen-share-disconnected", roomId);
+    },
+    closeCamStream({ state }: any, userId: string) {
+      document.getElementById(userId + CAM_TYPE)?.remove();
+      state.peers[userId + CAM_TYPE]?.close();
+
+      // Useful ?
+      // document.getElementById("name-" + userId)?.remove();
+      // document.getElementById("img-" + userId)?.remove();
+    },
+    closeScreenStream({ state }: any, userId: string) {
+      console.log("closeScreenStream");
+
+      document.getElementById(userId + SCREEN_TYPE)?.remove();
+      state.peers[userId + SCREEN_TYPE]?.close();
+    },
+    createRoom({ state, dispatch }: any) {
+      console.log("socket/createRoom 🎃");
       state.socket.emit(
         "vue-create",
-        ({ success, err, id }: SocketCallback) => {
-          if (err) {
-            toast("error", err);
-          } else {
-            toast("success", success);
-            router.push({ name: "Room", params: { id } });
-
-            // do more code
-            // to begin lets assume every user will activate his webcam
-          }
+        ({ success, err, roomId }: SocketCallback) => {
+          handleSocketResult(success, err);
+          router.push({ name: "Room", params: { roomId } });
+          dispatch("room/createRoom", roomId, { root: true });
         }
       );
     },
     join({ state, dispatch }: any, joinedStreamType: string) {
-      // here problem, we connect once and trigger one ready so the other users send only nbut if we have two streams,
-      // so we get both streams of every user to get only to the cam user ,
-      // do we really care to whom it goes ? because we only need to show them...
-      // mhmhmhmhmhmhmhmhmhmhmhmhmhmhm
-      // only send all to cams...
-      // screens => only setlocaldescription
-
-      // what i need to do: when user joins, create a default cam stream event without a video / audio stream,
-      // and just replace it with the real cam when activated
-
-      // TODO supprimer cette fonction car elle a rien à faire dans rtcScreenStore ?
-      console.log("socket/join ", joinedStreamType);
-
-      // goal: a user can and see cams of others without having one !!!!!!!!!!
-
-      // TODO Move this in a service
-      state.socket.emit(
+      console.log("socket/join 🎃", joinedStreamType);
+      // TODO Move this in a service, an action should trigger a mutation
+      return state.socket.emit(
         "vue-join",
         router.currentRoute.value.params.id,
         joinedStreamType,
-        ({ success, err }: SocketCallback) => {
-          if (err) {
-            toast("error", err);
-            return false;
-          } else {
-            toast("success", success);
-            return true;
-          }
+        ({ success, err, roomId }: SocketCallback) => {
+          handleSocketResult(success, err);
+          dispatch("room/createRoom", roomId, { root: true });
         }
       );
     },
@@ -433,15 +269,7 @@ export default {
 
       return state.socket.emit(
         "force-disconnect",
-        ({ success, err }: SocketCallback) => {
-          if (err) {
-            toast("error", err);
-            return false;
-          } else {
-            toast("success", success);
-            return true;
-          }
-        }
+        ({ success, err }: SocketCallback) => handleSocketResult(success, err)
       );
     },
   },

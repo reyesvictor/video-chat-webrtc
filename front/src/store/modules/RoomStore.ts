@@ -17,12 +17,15 @@ export default {
     },
   },
   mutations: {
-    CREATE_ROOM(state: State, payload: string) {
-      state.room.id = payload;
+    CREATE_ROOM(state: State, roomId: string) {
+      state.room.id = roomId;
     },
     // JOIN_ROOM
   },
   actions: {
+    createRoom({ commit }: any, roomId: string) {
+      commit("CREATE_ROOM", roomId);
+    },
     // createRoom({ commit, dispatch }: any) {
     //   axios
     //     .get("http://localhost:4000/generate-room")

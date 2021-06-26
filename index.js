@@ -4,7 +4,7 @@ const app = express();
 const { v4: uuidV4 } = require("uuid");
 
 //Starts the server
-let server = app.listen(4000, function () {
+let server = app.listen(4000, () => {
   console.log("Server is running");
 });
 
@@ -39,31 +39,31 @@ app.get("/r/:room", (req, res) => {
   // res.redirect('https://www.google.fr/');
   res.end()
 
-  // res.render("room", { roomName: req.params.room });
+  // res.render("room", { roomId: req.params.room });
 });
 
-io.on("connection", function (socket) {
+io.on("connection", (socket) => {
   console.log("\x1b[31m", "User Connected :" + socket.id);
   const userId = socket.id;
 
   //Triggered when a peer hits the join room button.
 
-  socket.on("join", function (roomName) {
+  socket.on("join", (roomId) => {
     console.log("join");
     let rooms = io.sockets.adapter.rooms;
-    let room = rooms.get(roomName);
+    let room = rooms.get(roomId);
     console.log("room", room);
 
     //room == undefined when no such room exists.
     if (room == undefined) {
       console.log("room created");
-      socket.join(roomName);
-      socket.emit("created");
+      socket.join(roomId);
+      socket.emit("created", roomId);
     } else if (room.size > 0) {
       //room.size == 1 when one person is inside the room.
       console.log("joined");
-      socket.join(roomName);
-      socket.emit("joined");
+      socket.join(roomId);
+      socket.emit("joined", roomId);
     } else {
       //when there are already two people inside the room.
       console.log("full");
@@ -72,81 +72,86 @@ io.on("connection", function (socket) {
     console.log(rooms);
 
     socket.on("disconnect", () => {
-      socket.to(roomName).emit("user-disconnected", userId);
+      socket.to(roomId).emit("user-disconnected", userId);
     });
   });
 
-  socket.on("vue-create", function (callback) {
-    const newUrl = uuidV4();
+  socket.on("user-screen-share-disconnected", (roomId) => {
+    console.log("user-screen-share-disconnected  -- ", roomId);
+    socket.to(roomId).emit("user-screen-share-disconnected", userId);
+  });
+
+  socket.on("vue-create", (callback) => {
+    const roomId = uuidV4();
 
     try {
-      authorizedLinks.push(newUrl);
+      authorizedLinks.push(roomId);
       console.log('authorizedLinks', authorizedLinks);
-      socket.join(newUrl);
+      socket.join(roomId);
 
       let rooms = io.sockets.adapter.rooms;
-      let room = rooms.get(newUrl);
+      let room = rooms.get(roomId);
       console.log("room", room);
-      callback({ success: 'Room was created', id: newUrl })
+      callback({ success: 'Room was created', roomId })
     }
     catch (err) {
       callback({ err });
     }
 
     socket.on("disconnect", () => {
-      socket.to(newUrl).emit("user-disconnected", userId);
+      socket.to(roomId).emit("user-disconnected", userId);
     });
   });
 
-  socket.on("vue-join", function (roomName, joinedStreamType, callback) {
+  socket.on("vue-join", (roomId, joinedStreamType, callback) => {
     try {
       console.log('vue-join');
-      socket.join(roomName);
+      socket.join(roomId);
       let rooms = io.sockets.adapter.rooms;
-      let room = rooms.get(roomName);
+      let room = rooms.get(roomId);
       console.log("room", room);
-      callback({ success: 'Joined successfully' })
+      callback({ success: 'Joined successfully', roomId })
       // emit
       console.log('ready joinedStreamType', joinedStreamType);
-      socket.to(roomName).emit("ready", userId, joinedStreamType); //Informs the other peer in the room.
+      socket.to(roomId).emit("ready", userId, joinedStreamType); //Informs the other peer in the room.
     }
     catch (err) {
       callback({ err });
     }
     socket.on("disconnect", () => {
-      socket.to(roomName).emit("user-disconnected", userId);
+      socket.to(roomId).emit("user-disconnected", userId);
     });
   });
 
   //Triggered when the person who joined the room is ready to communicate.
-  socket.on("ready", function (roomName) {
+  socket.on("ready", (roomId) => {
     console.log("ready");
-    socket.to(roomName).emit("ready", userId); //Informs the other peer in the room.
+    socket.to(roomId).emit("ready", userId); //Informs the other peer in the room.
   });
 
   //Triggered when server gets an icecandidate from a peer in the room.
 
-  socket.on("candidate", function (candidate, userToReplyTo, streamCommunication) {
+  socket.on("candidate", (candidate, userToReplyTo, streamTrade) => {
     console.log("candidate", candidate.candidate);
     // console.log(candidate);
     //Sends Candidate to the other peer in the room.
-    socket.to(userToReplyTo).emit("candidate", candidate, userId, streamCommunication);
+    socket.to(userToReplyTo).emit("candidate", candidate, userId, streamTrade);
   });
 
   //Triggered when server gets an offer from a peer in the room.
-  socket.on("offer", (offer, userToReplyTo, streamCommunication) => {
+  socket.on("offer", (offer, userToReplyTo, streamTrade) => {
     console.log("offer");
 
     // x1
-    socket.to(userToReplyTo).emit("offer", offer, userId, streamCommunication); //Sends Offer to the other peer in the room.
+    socket.to(userToReplyTo).emit("offer", offer, userId, streamTrade); //Sends Offer to the other peer in the room.
   });
 
   //Triggered when server gets an answer from a peer in the room.
 
-  socket.on("answer", function (answer, userToReplyTo, streamCommunication) {
+  socket.on("answer", (answer, userToReplyTo, streamTrade) => {
     console.log("answer");
     // x1
-    socket.to(userToReplyTo).emit("answer", answer, userId, streamCommunication); //Sends Answer to the other peer in the room.
+    socket.to(userToReplyTo).emit("answer", answer, userId, streamTrade); //Sends Answer to the other peer in the room.
   });
 
   socket.on("force-disconnect", (callback) => {
@@ -159,15 +164,15 @@ io.on("connection", function (socket) {
     }
   });
 
-  socket.on("name", (roomName, newName) => {
-    socket.to(roomName).emit("name", userId, newName); //Informs the other peer in the room.
+  socket.on("name", (roomId, newName) => {
+    socket.to(roomId).emit("name", userId, newName); //Informs the other peer in the room.
   });
 
-  socket.on("hideVideo", roomName => {
-    socket.to(roomName).emit("hideVideo", userId);
+  socket.on("hideVideo", roomId => {
+    socket.to(roomId).emit("hideVideo", userId);
   })
 
-  socket.on("showVideo", roomName => {
-    socket.to(roomName).emit("showVideo", userId);
+  socket.on("showVideo", roomId => {
+    socket.to(roomId).emit("showVideo", userId);
   })
 });

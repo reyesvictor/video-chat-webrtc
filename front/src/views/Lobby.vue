@@ -137,7 +137,7 @@ export default defineComponent({
 
 video,
 img {
-  width: 300px;
+  width: 533px;
   height: 300px;
   object-fit: cover;
 }

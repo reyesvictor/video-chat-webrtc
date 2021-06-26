@@ -16,7 +16,7 @@ export default {
     media: {
       audio: true,
       video: {
-        width: 300,
+        width: 533,
         height: 300,
       },
     },
@@ -42,15 +42,36 @@ export default {
   },
   actions: {
     // it begins here
-    async startVideo({ state, commit, dispatch }: any) {
+    async startVideo({ getters, state, commit, dispatch }: any) {
       console.log("rtcCam/startVideo");
 
-      const stream: MyMediaStream = await getCamStream(state.media);
+      const stream: void | MediaStream = await getCamStream(state.media);
+
+      console.log("stream typeof: ", typeof stream);
+
       if (stream) {
         commit("UPDATE_VIDEO", stream);
         const workflow = state.workflow;
         workflow.video.STARTED = true;
         commit("UPDATE_WORKFLOW", workflow);
+        console.log("workflow: ", state.workflow.video.STARTED);
+
+        // set cam for the first time
+        Object.keys(getters.getCleanPeers).forEach((id) => {
+          const senders = getters.getCleanPeers[id].getSenders();
+          senders.forEach((sender: RTCRtpSender) => {
+            if (sender.track?.kind === "video") {
+              const newVideoTrack = stream
+                .getTracks()
+                .find((track: MediaStreamTrack) => track.kind === "video");
+
+              if (newVideoTrack) {
+                console.log("New video tracks setted 😎");
+                sender.replaceTrack(newVideoTrack);
+              }
+            }
+          });
+        });
 
         // TODO set state CONNECTED to verify if connected or not and not relaunch it again
         // dispatch("socket/connect", null, { root: true });
@@ -121,8 +142,12 @@ export default {
     updateWorkflow({ commit }: any, workflow: Workflow) {
       if (workflow) commit("UPDATE_WORKFLOW", workflow);
     },
-    setEmptyStream({ commit }: any) {
+    setEmptyStream({ state, commit }: any) {
+      console.log("rtcCam/setEmptyStream");
       commit("UPDATE_VIDEO", new MediaStream());
+      const workflow = state.workflow;
+      workflow.video.STARTED = true;
+      commit("UPDATE_WORKFLOW", workflow);
     },
   },
   getters: {

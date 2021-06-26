@@ -33,8 +33,8 @@
     >
       Share My Screen
     </button>
-    <button v-else class="btn btn-secondary mb-2" @click="startScreenVideo">
-      Hide My Screen
+    <button v-else class="btn btn-secondary mb-2" @click="stopScreenVideo">
+      Stop sharing My Screen
     </button>
     <br />
     <!-- <input type="text" value="Random" id="newNameInput" /> -->
@@ -68,10 +68,18 @@
 
 <script lang="ts">
 import { toast } from "../services/ToastService";
-import { ref, defineComponent, reactive, toRefs } from "vue";
+import {
+  ref,
+  defineComponent,
+  reactive,
+  toRefs,
+  onUpdated,
+  onBeforeMount,
+} from "vue";
 import { useStore } from "vuex";
 import router from "../../src/router/index";
 import { CAM_TYPE, SCREEN_TYPE } from "../store/modules/utils";
+import { doc, toggleFullscreen } from "../services/RTCService";
 
 interface VideoHTMLRef {
   srcObject: MediaStream;
@@ -84,6 +92,13 @@ export default defineComponent({
   name: "Room",
   components: {},
   setup() {
+    //WHERE TO PUT THIS ? VUE VERSION?
+    onUpdated(() => {
+      document.querySelectorAll("video").forEach((video) => {
+        video.onclick = () => toggleFullscreen("#" + video.getAttribute("id"));
+      });
+    });
+
     const camVideo = ref<null | VideoHTMLRef>(null);
     const screenVideo = ref<null | VideoHTMLRef>(null);
     const store: any = useStore();
@@ -99,10 +114,16 @@ export default defineComponent({
       hasJoined: false,
     });
 
-    const startCamVideo = () => store.dispatch("rtcCam/startVideo");
+    // SCREEN VIDEO
     const startScreenVideo = () => {
       store.dispatch("rtcScreen/startVideo");
     };
+    const stopScreenVideo = async () => {
+      await store.dispatch("rtcScreen/stopVideo");
+    };
+
+    // CAM VIDEO
+    const startCamVideo = () => store.dispatch("rtcCam/startVideo");
 
     const hideVideo = async () => {
       const success = await store.dispatch("rtcCam/hideVideo");
@@ -136,6 +157,10 @@ export default defineComponent({
         const videoHTML = camVideo.value;
         if (stream && videoHTML) {
           try {
+            // update rtc
+            // store.dispatch("rtcCam/")
+
+            // update front local user
             videoHTML.srcObject = stream;
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
@@ -148,8 +173,16 @@ export default defineComponent({
     );
 
     store.watch(
+      () => store.getters["rtcScreen/getIsActive"],
+      (isActive: boolean) => {
+        state.isScreenOn = isActive;
+      }
+    );
+
+    store.watch(
       () => store.getters["rtcScreen/getStream"],
       (stream: MediaStream) => {
+        console.log("getStream 🎈");
         const videoHTML = screenVideo.value;
         console.log("watcher", stream, videoHTML);
         if (stream && videoHTML) {
@@ -167,16 +200,21 @@ export default defineComponent({
     );
 
     const join = async () => {
-      store.dispatch("socket/connect"); // WARNING DOUBLE CONNECT IF THE SAME PERSON CREATED THE ROOM
+      store.dispatch("rtcCam/setEmptyStream");
 
-      // store.dispatch("rtcCam/setEmptyStream");
-      // store.dispatch("rtcScreen/setEmptyStream");
-
+      // ONLY IF SOMEONES JOINS AND DOESNT CREATE A ROOM !!
+      store.dispatch("socket/connect"); // WARNING DOUBLE CONNECT IF THE SAME PERSON CREATED THE
       const success = await store.dispatch("socket/join", CAM_TYPE);
 
       // TODO movie hasJoined inside a STORE like SOCKETSTORE
+      console.log("BRUH BRUH", success);
       if (success) state.hasJoined = true;
     };
+
+    onBeforeMount(() => {
+      console.log("onBeforeMount join 🎄");
+      join();
+    });
 
     return {
       join,
@@ -188,7 +226,9 @@ export default defineComponent({
       enableAudio,
       screenVideo,
       startCamVideo,
+      stopScreenVideo,
       startScreenVideo,
+      toggleFullscreen,
       ...toRefs(state),
     };
   },
@@ -198,17 +238,18 @@ export default defineComponent({
 <style lang="scss" scoped>
 #video-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 300px);
+  grid-template-columns: repeat(auto-fill, 533px);
   grid-auto-rows: 300px;
 }
 
 video,
 img {
-  width: 300px;
+  width: 533px;
   height: 300px;
-  max-width: -webkit-fill-available !important;
-  width: -webkit-fill-available !important;
+  // max-width: -webkit-fill-available !important;
+  // max-width: -webkit-fill-available !important;
   max-height: 300px !important;
+  max-width: 533px !important;
   object-fit: cover;
 }
 

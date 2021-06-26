@@ -2,7 +2,6 @@ import { MyMedia } from "./../../types";
 
 export interface RoomState {
   id: string;
-  name: string;
 }
 
 export interface IceServer {
@@ -14,7 +13,7 @@ export interface RTCState {
   iceServers: IceServer[];
   media: MyMedia;
   stream: MediaStream;
-  workflow: Workflow;
+  workflow: any; // error here when selecting video
 }
 
 export interface Peer {
@@ -22,14 +21,12 @@ export interface Peer {
 }
 
 export interface Workflow {
-  workflow: {
-    video: {
-      STARTED: boolean;
-    };
+  video: {
+    STARTED: boolean;
   };
 }
 
-export interface StreamCommunication {
+export interface StreamTrade {
   joined: string;
   present: string;
 }

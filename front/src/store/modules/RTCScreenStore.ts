@@ -3,6 +3,7 @@ import { getScreenStream } from "@/services/StreamService";
 import { toast } from "@/services/ToastService";
 import { MyMediaStream } from "@/types";
 import { Peer, RTCState, Workflow } from "./types";
+import { startNewSession } from "logrocket";
 
 interface UpdateVideoProps {
   stream: MediaStream;
@@ -21,8 +22,8 @@ export default {
     media: {
       audio: true,
       video: {
-        width: 300,
-        height: 300,
+        width: 1920,
+        height: 1080,
       },
     },
     stream: {
@@ -44,6 +45,15 @@ export default {
       state.workflow = workflow;
       console.log("new screen workflow", workflow);
     },
+    STOP_VIDEO(state: RTCState) {
+      state.workflow.video.STARTED = false;
+
+      // doublon hangUp
+      state.stream
+        .getTracks()
+        .forEach((track: MediaStreamTrack) => track.stop());
+      console.log("peers", state.peers);
+    },
   },
   actions: {
     async startVideo({ state, commit, dispatch }: any) {
@@ -60,10 +70,10 @@ export default {
         // setTimeout(dispatch("socket/join", SCREEN_TYPE, { root: true }), 3000);
       }
     },
-    async hideVideo({ dispatch }: any) {
-      const response = await dispatch("updateVideoStatus", false);
-
-      return response;
+    async stopVideo({ commit, dispatch, getters }: any) {
+      commit("STOP_VIDEO");
+      dispatch("socket/sendCloseScreenStream", null, { root: true });
+      getters.getCleanPeers.forEach((rtc: any) => rtc?.close?.());
     },
     async showVideo({ dispatch }: any) {
       const response = await dispatch("updateVideoStatus", true);
@@ -110,6 +120,7 @@ export default {
       return hasModified;
     },
     hangUp({ getters }: any) {
+      // is this function useful ??
       try {
         console.log("hangUp");
 
@@ -128,6 +139,9 @@ export default {
     },
   },
   getters: {
+    getIsActive(state: RTCState): boolean {
+      return state.workflow.video.STARTED;
+    },
     getStream(state: RTCState): MediaStream {
       return state.stream;
     },

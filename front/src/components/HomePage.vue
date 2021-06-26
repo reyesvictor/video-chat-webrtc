@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, toRefs, computed, reactive } from "vue";
+import { defineComponent } from "vue";
 import { useStore } from "vuex";
 
 // TODO See if the logic should be in the /views instead of /components
@@ -26,7 +26,7 @@ export default defineComponent({
     const createRoom = (): void => {
       console.log("createRoom");
       store.dispatch("socket/connect");
-      store.dispatch("socket/create");
+      store.dispatch("socket/createRoom");
     };
 
     return {

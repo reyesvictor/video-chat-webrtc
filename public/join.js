@@ -21,7 +21,7 @@ class JoinedPeers {
 
   OnIceCandidateFunction(event) {
     if (event.candidate) {
-      socket.emit("candidate", event.candidate, roomName);
+      socket.emit("candidate", event.candidate, roomId);
     }
   }
 
@@ -54,7 +54,7 @@ class JoinedPeers {
     console.log('prepareAll🐺- offer ready');
     await peer.setLocalDescription(new RTCSessionDescription(offer));
     console.log("prepareAll🐺- setLocalDescription");
-    socket.emit("offer", offer, roomName);
+    socket.emit("offer", offer, roomId);
     console.log("prepareAll🐺- socket emit");
   }
 
