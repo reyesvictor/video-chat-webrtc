@@ -1,7 +1,9 @@
 # video-chat-webrtc
 
 ## Résumé
-Video chat en WebRTC avec Vue.js, Vuex pour les states front, Socket.io et Node.js pour la gestion de Room
+Video chat en WebRTC avec:
+- En front: Typescript, Vue.js et Vuex pour les states front
+- En back: Socket.io et Node.js pour la gestion de Room
 
 ## Lancer
 ```
