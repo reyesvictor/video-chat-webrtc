@@ -1,5 +1,8 @@
 # video-chat-webrtc
 
+## Statut
+Actuellement en cours de factorisation et debug
+
 ## Résumé
 Video chat en WebRTC avec:
 - En front: Typescript, Vue.js et Vuex pour les states front
