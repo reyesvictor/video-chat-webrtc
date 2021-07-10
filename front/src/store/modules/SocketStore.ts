@@ -59,7 +59,7 @@ export default {
       socket.on("ready", (userId: string, joinedStreamType: string) => {
         const cam = getters.getCamStream;
         const peerId = userId + joinedStreamType;
-        console.log("ready");
+        console.log("ready", rootState.rtcCam);
 
         if (rootState.rtcCam.workflow.video.STARTED) {
           console.log("ready rtcCam");
@@ -246,7 +246,7 @@ export default {
         "vue-create",
         ({ success, err, roomId }: SocketCallback) => {
           handleSocketResult(success, err);
-          router.push({ name: "Room", params: { roomId } });
+          router.push({ name: "Room", params: { id: roomId } });
           dispatch("room/createRoom", roomId, { root: true });
         }
       );

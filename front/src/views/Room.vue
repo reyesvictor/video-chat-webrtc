@@ -37,10 +37,6 @@
       Stop sharing My Screen
     </button>
     <br />
-    <!-- <input type="text" value="Random" id="newNameInput" /> -->
-    <!-- <button type="button" id="newNameButton">Submit new name 🏷</button> -->
-    <!-- <br />
-    <br /> -->
     <button
       type="button"
       class="btn btn-warning"
@@ -113,7 +109,6 @@ export default defineComponent({
       isAudioMute: false,
       hasJoined: false,
     });
-
     // SCREEN VIDEO
     const startScreenVideo = () => {
       store.dispatch("rtcScreen/startVideo");

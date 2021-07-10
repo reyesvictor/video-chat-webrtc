@@ -1,9 +1,12 @@
+import { addTracks } from "./../../services/RTCService";
 import router from "@/router";
 import { getCamStream } from "@/services/StreamService";
 import { toast } from "@/services/ToastService";
 import { MyMediaStream } from "@/types";
 import { Peer, RTCState, Workflow } from "./types";
 import { CAM_TYPE } from "./utils";
+import { track } from "logrocket";
+import { FakeMediaStreamTrack } from "fake-mediastreamtrack";
 
 export default {
   namespaced: true,
@@ -139,13 +142,44 @@ export default {
         toast("error", (err as Error).message);
       }
     },
-    updateWorkflow({ commit }: any, workflow: Workflow) {
-      if (workflow) commit("UPDATE_WORKFLOW", workflow);
-    },
     setEmptyStream({ state, commit }: any) {
+      // TODO make a user start with empty video ... how ???
       console.log("rtcCam/setEmptyStream");
-      commit("UPDATE_VIDEO", new MediaStream());
-      const workflow = state.workflow;
+
+      const createEmptyAudioTrack = () => {
+        const ctx = new AudioContext();
+        const oscillator = ctx.createOscillator();
+        const dst: any = oscillator.connect(ctx.createMediaStreamDestination());
+        oscillator.start();
+        const track = dst.stream.getAudioTracks()[0];
+        return Object.assign(track, { enabled: false });
+      };
+
+      const createEmptyVideoTrack = ({
+        width,
+        height,
+      }: {
+        width: number;
+        height: number;
+      }) => {
+        const canvas: any = Object.assign(document.createElement("canvas"), {
+          width,
+          height,
+        });
+        canvas.getContext("2d").fillRect(0, 0, width, height);
+
+        const stream = canvas.captureStream();
+        const track = stream.getVideoTracks()[0];
+
+        return Object.assign(track, { enabled: false });
+      };
+
+      const audioTrack = createEmptyAudioTrack();
+      const videoTrack = createEmptyVideoTrack({ width: 640, height: 480 });
+      const newMedia: MediaStream = new MediaStream([audioTrack, videoTrack]);
+
+      commit("UPDATE_VIDEO", newMedia);
+      const { workflow } = state;
       workflow.video.STARTED = true;
       commit("UPDATE_WORKFLOW", workflow);
     },
