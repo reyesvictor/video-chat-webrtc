@@ -8,7 +8,7 @@
     <video id="screen-video" ref="screenVideo"></video>
   </div>
   <div id="buttons-container">
-    <button v-if="isCamOn" class="btn btn-secondary mb-2" @click="stopCamVideo">
+    <button v-if="isCamOn" class="btn btn-secondary mb-2" @click="hideCamVideo">
       🙈"Hide" My Camera
     </button>
     <button v-else class="btn btn-primary mb-2" @click="startCamVideo">
@@ -95,9 +95,9 @@ export default defineComponent({
         type: MediaStream,
         required: false,
       },
-      isScreenOn: computed(() => store.getters["rtcScreen/getIsStreamVideoOn"]),
-      isCamOn: computed(() => store.getters["rtcCam/getIsStreamVideoOn"]),
-      isAudioOn: computed(() => store.getters["rtcCam/getIsStreamAudioOn"]),
+      isScreenOn: computed(() => store.getters["rtcScreen/getIsVideoActive"]),
+      isCamOn: computed(() => store.getters["rtcCam/getIsVideoActive"]),
+      isAudioOn: computed(() => store.getters["rtcCam/getIsAudioActive"]),
       hasJoined: false,
     });
 
@@ -107,7 +107,7 @@ export default defineComponent({
 
     // CAM VIDEO
     const startCamVideo = () => store.dispatch("rtcCam/startVideo"); // same as showVideo
-    const stopCamVideo = () => store.dispatch("rtcCam/hideVideo");
+    const hideCamVideo = () => store.dispatch("rtcCam/hideVideo");
 
     // delete useless return response inside commits in rtcCam...
     const muteAudio = () => store.dispatch("rtcCam/muteAudio");
@@ -181,7 +181,7 @@ export default defineComponent({
       join,
       hangUp,
       camVideo,
-      stopCamVideo,
+      hideCamVideo,
       muteAudio,
       enableAudio,
       screenVideo,

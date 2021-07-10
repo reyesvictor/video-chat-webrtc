@@ -1,16 +1,8 @@
-import { addTracks, replaceTracks } from "./../../services/RTCService";
-import router from "@/router";
+import { replaceTracks } from "./../../services/RTCService";
 import { getCamStream } from "@/services/StreamService";
-import { toast } from "@/services/ToastService";
-import { MyMediaStream } from "@/types";
-import { Peer, RTCState, Workflow } from "./types";
-import { CAM_TYPE, handleCatch } from "./utils";
-import { track } from "logrocket";
-import { FakeMediaStreamTrack } from "fake-mediastreamtrack";
-import {
-  getEmptyMediaStream,
-  getIsStreamOn,
-} from "@/services/MediaStreamService";
+import { Peer, RTCState, Status } from "./types";
+import { handleCatch } from "./utils";
+import { getEmptyMediaStream } from "@/services/MediaStreamService";
 
 export default {
   namespaced: true,
@@ -31,24 +23,22 @@ export default {
       type: MediaStream,
       required: false,
     },
-    workflow: {
-      video: {
-        STARTED: false,
-        // DISCONNECTED: false,
-      },
+    status: {
+      CAN_CONNECT: false,
+      VIDEO_ACTIVE: false,
+      AUDIO_ACTIVE: false,
     },
   },
   mutations: {
     UPDATE_VIDEO(state: RTCState, stream: MediaStream) {
       state.stream = stream;
     },
-    UPDATE_WORKFLOW(state: RTCState, workflow: Workflow) {
-      state.workflow = workflow;
-      console.log("new cam workflow", workflow);
+    UPDATE_WORKFLOW(state: RTCState, status: Status) {
+      state.status = status;
+      console.log("new cam status", status);
     },
   },
   actions: {
-    // it begins here
     async startVideo({ getters, state, commit, dispatch }: any) {
       let response = false;
       console.log("rtcCam/startVideo");
@@ -59,10 +49,10 @@ export default {
 
       if (stream) {
         commit("UPDATE_VIDEO", stream);
-        const workflow = state.workflow;
-        workflow.video.STARTED = true;
-        commit("UPDATE_WORKFLOW", workflow);
-        console.log("workflow: ", state.workflow.video.STARTED);
+        const status = state.status;
+        status.VIDEO_ACTIVE = true;
+        commit("UPDATE_WORKFLOW", status);
+        console.log("status: ", state.status.VIDEO_ACTIVE);
 
         // set cam for the first time
         Object.keys(getters.getCleanPeers).forEach((id) => {
@@ -78,12 +68,11 @@ export default {
         return response;
       }
     },
-    async hideVideo({ getters, commit, dispatch }: any) {
+    async hideVideo({ state, getters, commit }: any) {
       console.log("rtcCam/hideVideo");
       let response = false;
 
       try {
-        // response = await dispatch("updateVideoStatus", false);
         const emptyStream = getEmptyMediaStream();
         commit("UPDATE_VIDEO", emptyStream);
 
@@ -91,6 +80,10 @@ export default {
           const senders = getters.getCleanPeers[id].getSenders();
           replaceTracks(senders, emptyStream);
         });
+
+        const status = state.status;
+        status.VIDEO_ACTIVE = false;
+        commit("UPDATE_WORKFLOW", status);
       } catch (err: any) {
         handleCatch(err);
         response = false;
@@ -150,14 +143,13 @@ export default {
       }
     },
     setEmptyStream({ state, commit }: any) {
-      // TODO make a user start with empty video ... how ???
       console.log("rtcCam/setEmptyStream");
 
       try {
         commit("UPDATE_VIDEO", getEmptyMediaStream());
-        const { workflow } = state;
-        workflow.video.STARTED = true;
-        commit("UPDATE_WORKFLOW", workflow);
+        const { status } = state;
+        status.CAN_CONNECT = true;
+        commit("UPDATE_WORKFLOW", status);
       } catch (err: any) {
         handleCatch(err);
         return false;
@@ -170,11 +162,11 @@ export default {
     getStream(state: RTCState): MediaStream {
       return state.stream;
     },
-    getIsStreamVideoOn(state: RTCState): boolean {
-      return getIsStreamOn(state.stream, "video");
+    getIsVideoActive(state: RTCState): boolean {
+      return state.status.VIDEO_ACTIVE;
     },
-    getIsStreamAudioOn(state: RTCState): boolean {
-      return getIsStreamOn(state.stream, "audio");
+    getIsAudioActive(state: RTCState): boolean {
+      return state.status.AUDIO_ACTIVE;
     },
     getPeers(state: RTCState): Peer {
       return state.peers;

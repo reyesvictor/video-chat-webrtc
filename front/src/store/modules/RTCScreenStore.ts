@@ -1,12 +1,8 @@
-import { CAM_TYPE, handleCatch, SCREEN_TYPE } from "./utils";
+import { handleCatch } from "./utils";
 import { getScreenStream } from "@/services/StreamService";
-import { toast } from "@/services/ToastService";
 import { MyMediaStream } from "@/types";
-import { Peer, RTCState, Workflow } from "./types";
-import {
-  getEmptyMediaStream,
-  getIsStreamOn,
-} from "@/services/MediaStreamService";
+import { Peer, RTCState, Status } from "./types";
+import { getEmptyMediaStream } from "@/services/MediaStreamService";
 
 // TODO verify if not in mobile to not trigger this store (getmediadevices lacks on mobile)
 export default {
@@ -28,23 +24,21 @@ export default {
       type: {} as MediaStream,
       required: false,
     },
-    workflow: {
-      video: {
-        STARTED: false,
-        // DISCONNECTED: false,
-      },
+    status: {
+      VIDEO_ACTIVE: false,
+      AUDIO_ACTIVE: false,
     },
   },
   mutations: {
     UPDATE_VIDEO(state: RTCState, stream: MediaStream) {
       state.stream = stream;
     },
-    UPDATE_WORKFLOW(state: RTCState, workflow: Workflow) {
-      state.workflow = workflow;
-      console.log("new screen workflow", workflow);
+    UPDATE_WORKFLOW(state: RTCState, status: Status) {
+      state.status = status;
+      console.log("new screen status", status);
     },
     STOP_VIDEO(state: RTCState) {
-      state.workflow.video.STARTED = false;
+      state.status.VIDEO_ACTIVE = false;
 
       // doublon hangUp
       state.stream
@@ -62,9 +56,9 @@ export default {
       if (stream) {
         console.log(stream, "-------------------------------");
         commit("UPDATE_VIDEO", stream);
-        const workflow = state.workflow;
-        workflow.video.STARTED = true;
-        commit("UPDATE_WORKFLOW", workflow);
+        const status = state.status;
+        status.VIDEO_ACTIVE = true;
+        commit("UPDATE_WORKFLOW", status);
 
         // dispatch("socket/connect", null, { root: true });
         // setTimeout(dispatch("socket/join", SCREEN_TYPE, { root: true }), 3000);
@@ -115,27 +109,19 @@ export default {
         handleCatch((err as Error).message);
       }
     },
-    updateWorkflow({ commit }: any, workflow: Workflow) {
-      if (workflow) commit("UPDATE_WORKFLOW", workflow);
+    updateStatus({ commit }: any, status: Status) {
+      if (status) commit("UPDATE_WORKFLOW", status);
     },
     setEmptyStream({ commit }: any) {
       commit("UPDATE_VIDEO", new MediaStream());
     },
   },
   getters: {
-    getIsActive(state: RTCState): boolean {
-      // is it useful ???? the workflow state is kind of useless now that I use the stream state.
-      return state.workflow.video.STARTED;
+    getIsVideoActive(state: RTCState): boolean {
+      return state.status.VIDEO_ACTIVE;
     },
     getStream(state: RTCState): MediaStream {
       return state.stream;
-    },
-    getIsStreamVideoOn(state: RTCState): boolean {
-      console.log(
-        "🎆🎆🎆🎆rtcScreen/getIsStreamVideoOn",
-        getIsStreamOn(state.stream, "video")
-      );
-      return getIsStreamOn(state.stream, "video");
     },
     getPeers(state: RTCState): Peer {
       return state.peers;

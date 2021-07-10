@@ -61,7 +61,7 @@ export default {
         const peerId = userId + joinedStreamType;
         console.log("ready", rootState.rtcCam);
 
-        if (rootState.rtcCam.workflow.video.STARTED) {
+        if (rootState.rtcCam.status.CAN_CONNECT) {
           console.log("ready rtcCam");
           // TODO this is a state in the store, I should use an action to creation a new peer...
           camPeers[peerId] = new RTCPeerConnection(configuration);
@@ -78,7 +78,7 @@ export default {
         }
 
         if (
-          rootState.rtcScreen.workflow.video.STARTED &&
+          rootState.rtcScreen.status.VIDEO_ACTIVE &&
           joinedStreamType === CAM_TYPE
         ) {
           console.log("ready rtcScreen");
@@ -109,7 +109,7 @@ export default {
           const peerId = userId + streamTrade.present;
 
           if (
-            rootState.rtcCam.workflow.video.STARTED &&
+            rootState.rtcCam.status.CAN_CONNECT &&
             streamTrade.joined === CAM_TYPE
           ) {
             console.log("offer rtcCam inside");
@@ -130,7 +130,7 @@ export default {
           }
 
           if (
-            rootState.rtcScreen.workflow.video.STARTED &&
+            rootState.rtcScreen.status.VIDEO_ACTIVE &&
             streamTrade.joined === SCREEN_TYPE
           ) {
             console.log("offer rtcScreen inside");

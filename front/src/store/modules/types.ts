@@ -13,17 +13,17 @@ export interface RTCState {
   iceServers: IceServer[];
   media: MyMedia;
   stream: MediaStream;
-  workflow: any; // error here when selecting video
+  status: Status;
 }
 
 export interface Peer {
   [key: string]: RTCPeerConnection;
 }
 
-export interface Workflow {
-  video: {
-    STARTED: boolean;
-  };
+export interface Status {
+  CAN_CONNECT: boolean;
+  AUDIO_ACTIVE: boolean;
+  VIDEO_ACTIVE: boolean;
 }
 
 export interface StreamTrade {
