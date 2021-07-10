@@ -1,12 +1,13 @@
-import { addTracks } from "./../../services/RTCService";
+import { addTracks, replaceTracks } from "./../../services/RTCService";
 import router from "@/router";
 import { getCamStream } from "@/services/StreamService";
 import { toast } from "@/services/ToastService";
 import { MyMediaStream } from "@/types";
 import { Peer, RTCState, Workflow } from "./types";
-import { CAM_TYPE } from "./utils";
+import { CAM_TYPE, handleCatch } from "./utils";
 import { track } from "logrocket";
 import { FakeMediaStreamTrack } from "fake-mediastreamtrack";
+import { getEmptyMediaStream } from "@/services/MediaStreamService";
 
 export default {
   namespaced: true,
@@ -46,6 +47,7 @@ export default {
   actions: {
     // it begins here
     async startVideo({ getters, state, commit, dispatch }: any) {
+      let response = false;
       console.log("rtcCam/startVideo");
 
       const stream: void | MediaStream = await getCamStream(state.media);
@@ -62,32 +64,34 @@ export default {
         // set cam for the first time
         Object.keys(getters.getCleanPeers).forEach((id) => {
           const senders = getters.getCleanPeers[id].getSenders();
-          senders.forEach((sender: RTCRtpSender) => {
-            if (sender.track?.kind === "video") {
-              const newVideoTrack = stream
-                .getTracks()
-                .find((track: MediaStreamTrack) => track.kind === "video");
-
-              if (newVideoTrack) {
-                console.log("New video tracks setted 😎");
-                sender.replaceTrack(newVideoTrack);
-              }
-            }
-          });
+          replaceTracks(senders, stream);
+          response = true;
         });
 
         // TODO set state CONNECTED to verify if connected or not and not relaunch it again
         // dispatch("socket/connect", null, { root: true });
         // dispatch("socket/join", CAM_TYPE, { root: true });
+
+        return response;
       }
     },
-    async hideVideo({ dispatch }: any) {
-      const response = await dispatch("updateVideoStatus", false);
+    async hideVideo({ getters, commit, dispatch }: any) {
+      console.log("rtcCam/hideVideo");
+      let response = false;
 
-      return response;
-    },
-    async showVideo({ dispatch }: any) {
-      const response = await dispatch("updateVideoStatus", true);
+      try {
+        // response = await dispatch("updateVideoStatus", false);
+        const emptyStream = getEmptyMediaStream();
+        commit("UPDATE_VIDEO", emptyStream);
+
+        Object.keys(getters.getCleanPeers).forEach((id) => {
+          const senders = getters.getCleanPeers[id].getSenders();
+          replaceTracks(senders, emptyStream);
+        });
+      } catch (err: any) {
+        handleCatch(err);
+        response = false;
+      }
 
       return response;
     },
@@ -146,47 +150,34 @@ export default {
       // TODO make a user start with empty video ... how ???
       console.log("rtcCam/setEmptyStream");
 
-      const createEmptyAudioTrack = () => {
-        const ctx = new AudioContext();
-        const oscillator = ctx.createOscillator();
-        const dst: any = oscillator.connect(ctx.createMediaStreamDestination());
-        oscillator.start();
-        const track = dst.stream.getAudioTracks()[0];
-        return Object.assign(track, { enabled: false });
-      };
+      try {
+        commit("UPDATE_VIDEO", getEmptyMediaStream());
+        const { workflow } = state;
+        workflow.video.STARTED = true;
+        commit("UPDATE_WORKFLOW", workflow);
+      } catch (err: any) {
+        handleCatch(err);
+        return false;
+      }
 
-      const createEmptyVideoTrack = ({
-        width,
-        height,
-      }: {
-        width: number;
-        height: number;
-      }) => {
-        const canvas: any = Object.assign(document.createElement("canvas"), {
-          width,
-          height,
-        });
-        canvas.getContext("2d").fillRect(0, 0, width, height);
-
-        const stream = canvas.captureStream();
-        const track = stream.getVideoTracks()[0];
-
-        return Object.assign(track, { enabled: false });
-      };
-
-      const audioTrack = createEmptyAudioTrack();
-      const videoTrack = createEmptyVideoTrack({ width: 640, height: 480 });
-      const newMedia: MediaStream = new MediaStream([audioTrack, videoTrack]);
-
-      commit("UPDATE_VIDEO", newMedia);
-      const { workflow } = state;
-      workflow.video.STARTED = true;
-      commit("UPDATE_WORKFLOW", workflow);
+      return true;
     },
   },
   getters: {
     getStream(state: RTCState): MediaStream {
       return state.stream;
+    },
+    getIsStreamVideoOn(state: RTCState): boolean {
+      const tracks: MediaStreamTrack[] = state?.stream?.getTracks?.();
+      if (!tracks) return false;
+
+      const videoTrack = tracks?.find(
+        (track: MediaStreamTrack) => track.kind === "video"
+      );
+
+      if (!videoTrack) return false;
+
+      return videoTrack.enabled;
     },
     getPeers(state: RTCState): Peer {
       return state.peers;

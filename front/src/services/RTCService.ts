@@ -30,6 +30,7 @@ export const OnTrackFunction = (event: any, peerId: string) => {
 
   if (trackKind === "video") {
     const newPeerVideo: HTMLVideoElement = document.createElement("video");
+    newPeerVideo.style.background = "purple";
     newPeerVideo.setAttribute("id", peerId);
     newPeerVideo.srcObject = event.streams[0];
     newPeerVideo.onloadedmetadata = () => {
@@ -203,4 +204,28 @@ export const toggleFullscreen = (selector: string) => {
   } else {
     document.querySelector(selector)?.requestFullscreen().catch(console.log);
   }
+};
+
+export const replaceTracks = (senders: RTCRtpSender[], stream: MediaStream) => {
+  senders.forEach((sender: RTCRtpSender) => {
+    if (sender.track?.kind === "video") {
+      const newVideoTrack = stream
+        .getTracks()
+        .find((track: MediaStreamTrack) => track.kind === "video");
+
+      if (newVideoTrack) {
+        console.log("New video tracks setted 😎");
+        sender.replaceTrack(newVideoTrack);
+      }
+    } else if (sender.track?.kind === "audio") {
+      const newAudioTrack = stream
+        .getTracks()
+        .find((track: MediaStreamTrack) => track.kind === "video");
+
+      if (newAudioTrack) {
+        console.log("New Audio tracks setted 😎");
+        sender.replaceTrack(newAudioTrack);
+      }
+    }
+  });
 };

@@ -8,22 +8,11 @@
     <video id="screen-video" ref="screenVideo"></video>
   </div>
   <div id="buttons-container">
-    <button v-if="!isCamOn" class="btn btn-success mb-2" @click="startCamVideo">
-      👁 Let's start my Camera
-    </button>
-    <button
-      v-if="isCamOn && isCamHidden"
-      class="btn btn-primary mb-2"
-      @click="showVideo"
-    >
+    <button v-if="!isCamOn" class="btn btn-primary mb-2" @click="startCamVideo">
       👁 Show My Camera
     </button>
-    <button
-      v-else-if="isCamOn && !isCamHidden"
-      class="btn btn-secondary mb-2"
-      @click="hideVideo"
-    >
-      🙈Hide My Camera
+    <button v-else class="btn btn-secondary mb-2" @click="stopCamVideo">
+      🙈"Hide" My Camera
     </button>
     <br />
     <button
@@ -71,10 +60,12 @@ import {
   toRefs,
   onUpdated,
   onBeforeMount,
+  computed,
+  handleError,
 } from "vue";
 import { useStore } from "vuex";
 import router from "../../src/router/index";
-import { CAM_TYPE, SCREEN_TYPE } from "../store/modules/utils";
+import { CAM_TYPE, handleCatch, SCREEN_TYPE } from "../store/modules/utils";
 import { doc, toggleFullscreen } from "../services/RTCService";
 
 interface VideoHTMLRef {
@@ -98,17 +89,18 @@ export default defineComponent({
     const camVideo = ref<null | VideoHTMLRef>(null);
     const screenVideo = ref<null | VideoHTMLRef>(null);
     const store: any = useStore();
+
     const state = reactive({
       srcObject: {
         type: MediaStream,
         required: false,
       },
-      isCamOn: false,
-      isCamHidden: false,
+      isCamOn: computed(() => store.getters["rtcCam/getIsStreamVideoOn"]),
       isScreenOn: false,
       isAudioMute: false,
       hasJoined: false,
     });
+
     // SCREEN VIDEO
     const startScreenVideo = () => {
       store.dispatch("rtcScreen/startVideo");
@@ -118,21 +110,12 @@ export default defineComponent({
     };
 
     // CAM VIDEO
-    const startCamVideo = () => store.dispatch("rtcCam/startVideo");
-
-    const hideVideo = async () => {
-      const success = await store.dispatch("rtcCam/hideVideo");
-      if (success) state.isCamHidden = true;
-    };
-
-    const showVideo = async () => {
-      const success = await store.dispatch("rtcCam/showVideo");
-      if (success) state.isCamHidden = false;
-    };
+    const startCamVideo = () => store.dispatch("rtcCam/startVideo"); // same as showVideo
+    const stopCamVideo = async () => store.dispatch("rtcCam/hideVideo");
 
     const muteAudio = async () => {
       const success = await store.dispatch("rtcCam/muteAudio");
-      if (success) state.isAudioMute = true;
+      if (success) state.isAudioMute = true; // use computed getter here instead
     };
 
     const enableAudio = async () => {
@@ -159,9 +142,9 @@ export default defineComponent({
             videoHTML.srcObject = stream;
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
-            state.isCamOn = true;
+            // state.isCamOn = true; // useful ?
           } catch (err: any) {
-            toast("error", err);
+            handleCatch(err);
           }
         }
       }
@@ -215,8 +198,7 @@ export default defineComponent({
       join,
       hangUp,
       camVideo,
-      hideVideo,
-      showVideo,
+      stopCamVideo,
       muteAudio,
       enableAudio,
       screenVideo,
