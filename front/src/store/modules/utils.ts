@@ -7,7 +7,7 @@ export const SCREEN_TYPE = "screen";
 export const handleSocketResult = (success: string, err: string) => {
   if (err) {
     console.log(err);
-    toast("error", err);
+    handleCatch(err);
     return false;
   } else {
     console.log(success);
@@ -17,6 +17,8 @@ export const handleSocketResult = (success: string, err: string) => {
 };
 
 export const handleCatch = (err: string) => {
-  console.log(err);
+  console.log("⚠💥 " + err);
+
+  // if DEV environment => do not show toast errors
   toast("error", err);
 };

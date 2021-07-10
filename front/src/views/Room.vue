@@ -8,29 +8,29 @@
     <video id="screen-video" ref="screenVideo"></video>
   </div>
   <div id="buttons-container">
-    <button v-if="!isCamOn" class="btn btn-primary mb-2" @click="startCamVideo">
-      👁 Show My Camera
-    </button>
-    <button v-else class="btn btn-secondary mb-2" @click="stopCamVideo">
+    <button v-if="isCamOn" class="btn btn-secondary mb-2" @click="stopCamVideo">
       🙈"Hide" My Camera
+    </button>
+    <button v-else class="btn btn-primary mb-2" @click="startCamVideo">
+      👁 Show My Camera
     </button>
     <br />
     <button
-      v-if="!isScreenOn"
-      class="btn btn-success mb-2"
-      @click="startScreenVideo"
+      v-if="isScreenOn"
+      class="btn btn-secondary mb-2"
+      @click="stopScreenVideo"
     >
-      Share My Screen
-    </button>
-    <button v-else class="btn btn-secondary mb-2" @click="stopScreenVideo">
       Stop sharing My Screen
+    </button>
+    <button v-else class="btn btn-success mb-2" @click="startScreenVideo">
+      Share My Screen
     </button>
     <br />
     <button
       type="button"
       class="btn btn-warning"
       id="muteAudio"
-      v-if="!isAudioMute"
+      v-if="isAudioOn"
       @click="muteAudio"
     >
       muteAudio 🔇
@@ -95,33 +95,23 @@ export default defineComponent({
         type: MediaStream,
         required: false,
       },
+      isScreenOn: computed(() => store.getters["rtcScreen/getIsStreamVideoOn"]),
       isCamOn: computed(() => store.getters["rtcCam/getIsStreamVideoOn"]),
-      isScreenOn: false,
-      isAudioMute: false,
+      isAudioOn: computed(() => store.getters["rtcCam/getIsStreamAudioOn"]),
       hasJoined: false,
     });
 
     // SCREEN VIDEO
-    const startScreenVideo = () => {
-      store.dispatch("rtcScreen/startVideo");
-    };
-    const stopScreenVideo = async () => {
-      await store.dispatch("rtcScreen/stopVideo");
-    };
+    const startScreenVideo = () => store.dispatch("rtcScreen/startVideo");
+    const stopScreenVideo = () => store.dispatch("rtcScreen/stopVideo");
 
     // CAM VIDEO
     const startCamVideo = () => store.dispatch("rtcCam/startVideo"); // same as showVideo
-    const stopCamVideo = async () => store.dispatch("rtcCam/hideVideo");
+    const stopCamVideo = () => store.dispatch("rtcCam/hideVideo");
 
-    const muteAudio = async () => {
-      const success = await store.dispatch("rtcCam/muteAudio");
-      if (success) state.isAudioMute = true; // use computed getter here instead
-    };
-
-    const enableAudio = async () => {
-      const success = await store.dispatch("rtcCam/enableAudio");
-      if (success) state.isAudioMute = false;
-    };
+    // delete useless return response inside commits in rtcCam...
+    const muteAudio = () => store.dispatch("rtcCam/muteAudio");
+    const enableAudio = () => store.dispatch("rtcCam/enableAudio");
 
     const hangUp = async () => {
       store.dispatch("rtcCam/hangUp");
@@ -151,13 +141,6 @@ export default defineComponent({
     );
 
     store.watch(
-      () => store.getters["rtcScreen/getIsActive"],
-      (isActive: boolean) => {
-        state.isScreenOn = isActive;
-      }
-    );
-
-    store.watch(
       () => store.getters["rtcScreen/getStream"],
       (stream: MediaStream) => {
         console.log("getStream 🎈");
@@ -171,7 +154,7 @@ export default defineComponent({
             state.isScreenOn = true;
             store.dispatch("socket/join", SCREEN_TYPE, { root: true });
           } catch (err: any) {
-            toast("error", err);
+            handleCatch(err);
           }
         }
       }

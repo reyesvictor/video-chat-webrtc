@@ -44,7 +44,7 @@ export const getScreenStream = async (): Promise<boolean | MediaStream> => {
       // @ts-ignore
       stream = await navigator.mediaDevices.getDisplayMedia();
     } catch (err: any) {
-      toast("error", err);
+      handleCatch(err);
       return false;
     }
   } else {
@@ -52,7 +52,7 @@ export const getScreenStream = async (): Promise<boolean | MediaStream> => {
       // @ts-ignore
       stream = await navigator.getDisplayMedia();
     } catch (err: any) {
-      toast("error", err);
+      handleCatch(err);
       return false;
     }
   }

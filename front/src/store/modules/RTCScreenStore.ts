@@ -1,14 +1,12 @@
-import { CAM_TYPE, SCREEN_TYPE } from "./utils";
+import { CAM_TYPE, handleCatch, SCREEN_TYPE } from "./utils";
 import { getScreenStream } from "@/services/StreamService";
 import { toast } from "@/services/ToastService";
 import { MyMediaStream } from "@/types";
 import { Peer, RTCState, Workflow } from "./types";
-import { startNewSession } from "logrocket";
-
-interface UpdateVideoProps {
-  stream: MediaStream;
-  callback: CallableFunction;
-}
+import {
+  getEmptyMediaStream,
+  getIsStreamOn,
+} from "@/services/MediaStreamService";
 
 // TODO verify if not in mobile to not trigger this store (getmediadevices lacks on mobile)
 export default {
@@ -27,7 +25,7 @@ export default {
       },
     },
     stream: {
-      type: MediaStream,
+      type: {} as MediaStream,
       required: false,
     },
     workflow: {
@@ -52,6 +50,8 @@ export default {
       state.stream
         .getTracks()
         .forEach((track: MediaStreamTrack) => track.stop());
+      state.stream = getEmptyMediaStream();
+
       console.log("peers", state.peers);
     },
   },
@@ -73,27 +73,9 @@ export default {
     async stopVideo({ commit, dispatch, getters }: any) {
       commit("STOP_VIDEO");
       dispatch("socket/sendCloseScreenStream", null, { root: true });
-      getters.getCleanPeers.forEach((rtc: any) => rtc?.close?.());
-    },
-    async showVideo({ dispatch }: any) {
-      const response = await dispatch("updateVideoStatus", true);
-
-      return response;
-    },
-    // TODO factorize this actions with RTCCamStore
-    updateVideoStatus({ getters }: any, bool: boolean): boolean {
-      let hasModified = false;
-      Object.keys(getters.getCleanPeers).forEach((id) => {
-        const senders = getters.getCleanPeers[id].getSenders();
-        senders.forEach((sender: RTCRtpSender) => {
-          if (sender.track?.kind === "video") {
-            sender.track.enabled = bool;
-            hasModified = true;
-          }
-        });
-      });
-
-      return hasModified;
+      Object.values(getters.getCleanPeers).forEach((rtc: any) =>
+        rtc?.close?.()
+      );
     },
     async muteAudio({ dispatch }: any) {
       const response = await dispatch("updateAudioStatus", false);
@@ -107,6 +89,8 @@ export default {
     },
     updateAudioStatus({ getters }: any, bool: boolean): boolean {
       let hasModified = false;
+
+      //doublon rtcCamStore/updateVideoStatus
       Object.keys(getters.getCleanPeers).forEach((id) => {
         const senders = getters.getCleanPeers[id].getSenders();
         senders.forEach((sender: RTCRtpSender) => {
@@ -128,7 +112,7 @@ export default {
         stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
         console.log("hangUp2");
       } catch (err: any) {
-        toast("error", (err as Error).message);
+        handleCatch((err as Error).message);
       }
     },
     updateWorkflow({ commit }: any, workflow: Workflow) {
@@ -140,10 +124,18 @@ export default {
   },
   getters: {
     getIsActive(state: RTCState): boolean {
+      // is it useful ???? the workflow state is kind of useless now that I use the stream state.
       return state.workflow.video.STARTED;
     },
     getStream(state: RTCState): MediaStream {
       return state.stream;
+    },
+    getIsStreamVideoOn(state: RTCState): boolean {
+      console.log(
+        "🎆🎆🎆🎆rtcScreen/getIsStreamVideoOn",
+        getIsStreamOn(state.stream, "video")
+      );
+      return getIsStreamOn(state.stream, "video");
     },
     getPeers(state: RTCState): Peer {
       return state.peers;

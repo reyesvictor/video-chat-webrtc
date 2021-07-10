@@ -7,7 +7,10 @@ import { Peer, RTCState, Workflow } from "./types";
 import { CAM_TYPE, handleCatch } from "./utils";
 import { track } from "logrocket";
 import { FakeMediaStreamTrack } from "fake-mediastreamtrack";
-import { getEmptyMediaStream } from "@/services/MediaStreamService";
+import {
+  getEmptyMediaStream,
+  getIsStreamOn,
+} from "@/services/MediaStreamService";
 
 export default {
   namespaced: true,
@@ -143,7 +146,7 @@ export default {
         stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
         console.log("hangUp2");
       } catch (err) {
-        toast("error", (err as Error).message);
+        handleCatch((err as Error).message);
       }
     },
     setEmptyStream({ state, commit }: any) {
@@ -168,16 +171,10 @@ export default {
       return state.stream;
     },
     getIsStreamVideoOn(state: RTCState): boolean {
-      const tracks: MediaStreamTrack[] = state?.stream?.getTracks?.();
-      if (!tracks) return false;
-
-      const videoTrack = tracks?.find(
-        (track: MediaStreamTrack) => track.kind === "video"
-      );
-
-      if (!videoTrack) return false;
-
-      return videoTrack.enabled;
+      return getIsStreamOn(state.stream, "video");
+    },
+    getIsStreamAudioOn(state: RTCState): boolean {
+      return getIsStreamOn(state.stream, "audio");
     },
     getPeers(state: RTCState): Peer {
       return state.peers;

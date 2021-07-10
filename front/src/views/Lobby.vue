@@ -42,7 +42,7 @@
 import { toast } from "../services/ToastService";
 import { ref, defineComponent, reactive, toRefs } from "vue";
 import { useStore } from "vuex";
-import { CAM_TYPE, SCREEN_TYPE } from "../store/modules/utils";
+import { CAM_TYPE, handleCatch, SCREEN_TYPE } from "../store/modules/utils";
 
 interface VideoHTMLRef {
   srcObject: MediaStream;
@@ -92,7 +92,7 @@ export default defineComponent({
             state.isCamOn = true;
             store.dispatch("socket/join", SCREEN_TYPE, { root: true });
           } catch (err: any) {
-            toast("error", err);
+            handleCatch(err);
           }
         }
       }
@@ -110,7 +110,7 @@ export default defineComponent({
             videoHTML.onloadedmetadata = (e) => e.target.play();
             state.isScreenOn = true;
           } catch (err: any) {
-            toast("error", err);
+            handleCatch(err);
           }
         }
       }
