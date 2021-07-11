@@ -2,6 +2,7 @@ import { toggleFullscreen } from "./StreamService";
 import { CAM_TYPE, SCREEN_TYPE } from "./../store/modules/utils";
 import { handleCatch } from "@/store/modules/utils";
 import { IceServer, StreamTrade } from "./../store/modules/types";
+import { track } from "logrocket";
 
 export const iceServers: IceServer[] = [
   {
@@ -28,51 +29,35 @@ export const doc: any = document;
 
 export const OnTrackFunction = (event: any, peerId: string) => {
   const trackKind = event?.track?.kind;
+  if (!trackKind) return false;
 
   console.log("🔎 OnTrackFunction: ", trackKind);
+  let id = peerId;
+  const htmlElement: HTMLVideoElement | HTMLAudioElement =
+    document.createElement(trackKind);
 
   if (trackKind === "video") {
-    const newPeerVideo: HTMLVideoElement = document.createElement("video");
-    newPeerVideo.style.background = "purple";
-    newPeerVideo.setAttribute("id", peerId);
-    newPeerVideo.srcObject = event.streams[0];
-    newPeerVideo.onloadedmetadata = () => {
-      console.log("🔎 onloadedmedata: ", trackKind);
-      newPeerVideo.play();
-    };
-
-    newPeerVideo.muted = true;
-
-    newPeerVideo.onclick = (e: Event) => {
-      e.target?.addEventListener("click", () => {
-        toggleFullscreen("#" + peerId);
-      });
-    };
-
-    doc.getElementById("video-grid").appendChild(newPeerVideo);
+    htmlElement.style.background = "purple";
+    htmlElement.muted = true;
   } else if (trackKind === "audio") {
-    console.log("🔍 inside trackKind audio");
-    const newPeerAudio: HTMLAudioElement = document.createElement("audio");
-    newPeerAudio.style.background = "orange";
-    newPeerAudio.setAttribute("id", "audio" + peerId);
-    console.log("🔍 event.streams : ", event.streams);
-    newPeerAudio.srcObject = event.streams[0];
-    newPeerAudio.onloadedmetadata = () => {
-      console.log("🔎 onloadedmedata: ", trackKind);
-      newPeerAudio.play();
-    };
-
-    newPeerAudio.onclick = (e: Event) => {
-      e.target?.addEventListener("click", () => {
-        toggleFullscreen("#audio" + peerId);
-      });
-    };
-
-    doc.getElementById("video-grid").appendChild(newPeerAudio);
+    id = "audio-" + "peerId";
   }
+
+  htmlElement.setAttribute("id", id);
+  htmlElement.srcObject = event.streams[0];
+  htmlElement.onloadedmetadata = () => {
+    console.log("🔎 onloadedmedata: ", trackKind);
+    htmlElement.play();
+  };
+  htmlElement.onclick = (e: Event) => {
+    e.target?.addEventListener("click", () => {
+      toggleFullscreen("#" + id);
+    });
+  };
+
+  doc.getElementById(trackKind + "-grid").appendChild(htmlElement);
 };
 
-// doublon ?
 export const addTracks = (stream: MediaStream, peer: RTCPeerConnection) =>
   stream.getTracks().forEach((track: MediaStreamTrack) => {
     peer.addTrack(track, stream);
@@ -136,9 +121,10 @@ export const sendCamAnswer = ({
   offer,
 }: SendAnswer) => {
   console.log("sendCamAnswer");
-  peer.onicecandidate = (e: any) =>
+  peer.onicecandidate = (e: RTCPeerConnectionIceEvent) =>
     OnIceCandidateFunction(e, userId, state, streamTrade);
-  peer.ontrack = (e: any) => OnTrackFunction(e, userId + streamTrade.joined);
+  peer.ontrack = (e: RTCTrackEvent) =>
+    OnTrackFunction(e, userId + streamTrade.joined);
   addTracks(stream, peer);
   setRemoteDescription(peer, offer, state, userId, streamTrade);
 };
@@ -152,7 +138,7 @@ export const sendScreenAnswer = ({
   offer,
 }: SendAnswer) => {
   console.log("sendScreenAnswer");
-  peer.onicecandidate = (e: any) =>
+  peer.onicecandidate = (e: RTCPeerConnectionIceEvent) =>
     OnIceCandidateFunction(e, userId, state, streamTrade);
 
   addTracks(stream, peer);
@@ -182,9 +168,9 @@ export const sendCamOffer = ({
     present: CAM_TYPE,
   };
 
-  peer.onicecandidate = (e: any) =>
+  peer.onicecandidate = (e: RTCPeerConnectionIceEvent) =>
     OnIceCandidateFunction(e, userId, state, streamTrade);
-  peer.ontrack = (e: any) => OnTrackFunction(e, peerId);
+  peer.ontrack = (e: RTCTrackEvent) => OnTrackFunction(e, peerId);
   addTracks(stream, peer);
   createOffer(peer, state, userId, streamTrade);
 };
@@ -202,7 +188,7 @@ export const sendScreenOffer = ({
     present: SCREEN_TYPE,
   };
 
-  peer.onicecandidate = (e: any) =>
+  peer.onicecandidate = (e: RTCPeerConnectionIceEvent) =>
     OnIceCandidateFunction(e, userId, state, streamTrade);
   addTracks(stream, peer);
   createOffer(peer, state, userId, streamTrade);

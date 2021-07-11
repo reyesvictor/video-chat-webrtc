@@ -56,7 +56,6 @@ export default {
       console.log("rtcScreen/startVideo");
       const stream: MyMediaStream = await getScreenStream();
       if (stream) {
-        console.log(stream, "-------------------------------");
         commit("UPDATE_VIDEO", stream);
         const status = state.status;
         status.VIDEO_ACTIVE = true;

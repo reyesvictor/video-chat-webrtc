@@ -126,6 +126,19 @@ export default {
 
       return response;
     },
+    setEmptyStream({ commit }: any) {
+      console.log("rtcCam/setEmptyStream");
+
+      try {
+        commit("UPDATE_STREAM", getEmptyMediaStream());
+        commit("SET_CAN_CONNECT_ON");
+      } catch (err: any) {
+        handleCatch(err);
+        return false;
+      }
+
+      return true;
+    },
     hangUp({ getters, commit }: any) {
       try {
         console.log("rtcCam/hangUp");
@@ -133,23 +146,10 @@ export default {
         const stream = getters.getStream;
         stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
         console.log("hangUp2");
-        commit("SET_CAN_CONNECT_ON");
+        commit("SET_CAN_CONNECT_OFF");
       } catch (err) {
         handleCatch((err as Error).message);
       }
-    },
-    setEmptyStream({ commit }: any) {
-      console.log("rtcCam/setEmptyStream");
-
-      try {
-        commit("UPDATE_STREAM", getEmptyMediaStream());
-        commit("SET_CAN_CONNECT_OFF");
-      } catch (err: any) {
-        handleCatch(err);
-        return false;
-      }
-
-      return true;
     },
   },
   getters: {

@@ -3,6 +3,7 @@
   <button @click="join" v-if="!hasJoined">Join the Call</button>
   <br />
   <a :href="'/r/' + $route.params.id" target="_blank">Share !</a>
+  <div id="audio-grid"></div>
   <div id="video-grid">
     <video id="user-video" ref="camVideo"></video>
     <video id="screen-video" ref="screenVideo"></video>
