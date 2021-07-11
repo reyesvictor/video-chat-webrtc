@@ -1,13 +1,14 @@
-import { replaceTracks } from "./../../services/RTCService";
 import { getCamStream } from "@/services/StreamService";
-import { Peer, RTCState, Status } from "./types";
+import { Peer, RTCState } from "./types";
 import { handleCatch } from "./utils";
-import { getEmptyMediaStream } from "@/services/MediaStreamService";
+import {
+  getEmptyMediaStream,
+  replaceTracks,
+} from "@/services/MediaStreamService";
 
 export default {
   namespaced: true,
   state: {
-    // TODO peers see if possible to factorize this in the future for both streams
     peers: {
       type: {} as Peer,
       required: false,
@@ -30,60 +31,94 @@ export default {
     },
   },
   mutations: {
-    UPDATE_VIDEO(state: RTCState, stream: MediaStream) {
+    UPDATE_STREAM(state: RTCState, stream: MediaStream) {
       state.stream = stream;
     },
-    UPDATE_WORKFLOW(state: RTCState, status: Status) {
-      state.status = status;
-      console.log("new cam status", status);
+    SET_VIDEO_ACTIVE(state: RTCState) {
+      state.status.VIDEO_ACTIVE = true;
+    },
+    SET_VIDEO_INACTIVE(state: RTCState) {
+      state.status.VIDEO_ACTIVE = false;
+    },
+    SET_AUDIO_ACTIVE(state: RTCState) {
+      state.status.AUDIO_ACTIVE = true;
+    },
+    SET_AUDIO_INACTIVE(state: RTCState) {
+      state.status.AUDIO_ACTIVE = false;
+    },
+    SET_CAN_CONNECT_ON(state: RTCState) {
+      state.status.CAN_CONNECT = true;
+    },
+    SET_CAN_CONNECT_OFF(state: RTCState) {
+      state.status.CAN_CONNECT = false;
     },
   },
   actions: {
-    async startVideo({ getters, state, commit, dispatch }: any) {
-      let response = false;
+    async startVideo({ state, getters, commit, dispatch }: any) {
       console.log("rtcCam/startVideo");
+      dispatch("updateStream", {
+        audio: getters.getIsAudioActive,
+        video: state.media.video, // send parameters
+      });
 
-      const stream: void | MediaStream = await getCamStream(state.media);
-
-      console.log("stream typeof: ", typeof stream);
-
-      if (stream) {
-        commit("UPDATE_VIDEO", stream);
-        const status = state.status;
-        status.VIDEO_ACTIVE = true;
-        commit("UPDATE_WORKFLOW", status);
-        console.log("status: ", state.status.VIDEO_ACTIVE);
-
-        // set cam for the first time
-        Object.keys(getters.getCleanPeers).forEach((id) => {
-          const senders = getters.getCleanPeers[id].getSenders();
-          replaceTracks(senders, stream);
-          response = true;
-        });
-
-        // TODO set state CONNECTED to verify if connected or not and not relaunch it again
-        // dispatch("socket/connect", null, { root: true });
-        // dispatch("socket/join", CAM_TYPE, { root: true });
-
-        return response;
-      }
+      commit("SET_VIDEO_ACTIVE");
     },
-    async hideVideo({ state, getters, commit }: any) {
+    async hideVideo({ getters, commit, dispatch }: any) {
       console.log("rtcCam/hideVideo");
+      dispatch("updateStream", {
+        audio: getters.getIsAudioActive,
+        video: false,
+      });
+
+      commit("SET_VIDEO_INACTIVE");
+    },
+    async startAudio({ getters, commit, dispatch }: any) {
+      console.log("rtcCam/startAudio");
+
+      dispatch("updateStream", {
+        audio: true,
+        video: getters.getIsVideoActive,
+      });
+
+      commit("SET_AUDIO_ACTIVE");
+    },
+    async stopAudio({ getters, commit, dispatch }: any) {
+      console.log("rtcCam/stopAudio");
+
+      dispatch("updateStream", {
+        audio: false,
+        video: getters.getIsVideoActive,
+      });
+
+      commit("SET_AUDIO_INACTIVE");
+    },
+    async updateStream({ getters, commit }: any, { audio, video }: any) {
       let response = false;
 
       try {
-        const emptyStream = getEmptyMediaStream();
-        commit("UPDATE_VIDEO", emptyStream);
+        let stream: MediaStream = new MediaStream();
 
-        Object.keys(getters.getCleanPeers).forEach((id) => {
-          const senders = getters.getCleanPeers[id].getSenders();
-          replaceTracks(senders, emptyStream);
-        });
+        if (video || audio) {
+          stream = await getCamStream({
+            audio,
+            video,
+          });
+        } else {
+          stream = getEmptyMediaStream();
+        }
 
-        const status = state.status;
-        status.VIDEO_ACTIVE = false;
-        commit("UPDATE_WORKFLOW", status);
+        commit("UPDATE_STREAM", stream);
+
+        if (stream) {
+          Object.keys(getters.getCleanPeers).forEach((id) => {
+            const senders = getters.getCleanPeers[id].getSenders();
+
+            // make a state for video and audio like FAKE_STREAM, REAL_STREAM pour ne pas faire sauter la video a chaque fois que je mute / unmute mon son
+            replaceTracks(senders, stream);
+          });
+
+          response = true;
+        }
       } catch (err: any) {
         handleCatch(err);
         response = false;
@@ -91,65 +126,24 @@ export default {
 
       return response;
     },
-    updateVideoStatus({ getters }: any, bool: boolean): boolean {
-      let hasModified = false;
-
-      Object.keys(getters.getCleanPeers).forEach((id) => {
-        const senders = getters.getCleanPeers[id].getSenders();
-        senders.forEach((sender: RTCRtpSender) => {
-          if (sender.track?.kind === "video") {
-            sender.track.enabled = bool;
-            hasModified = true;
-          }
-        });
-      });
-
-      return hasModified;
-    },
-    async muteAudio({ dispatch }: any) {
-      const response = await dispatch("updateAudioStatus", false);
-
-      return response;
-    },
-    async enableAudio({ dispatch }: any) {
-      const response = await dispatch("updateAudioStatus", true);
-
-      return response;
-    },
-    updateAudioStatus({ getters }: any, bool: boolean): boolean {
-      let hasModified = false;
-
-      Object.keys(getters.getCleanPeers).forEach((id) => {
-        const senders = getters.getCleanPeers[id].getSenders();
-        senders.forEach((sender: RTCRtpSender) => {
-          if (sender.track?.kind === "audio") {
-            sender.track.enabled = bool;
-            hasModified = true;
-          }
-        });
-      });
-
-      return hasModified;
-    },
-    hangUp({ getters }: any) {
+    hangUp({ getters, commit }: any) {
       try {
-        console.log("hangUp");
+        console.log("rtcCam/hangUp");
 
         const stream = getters.getStream;
         stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
         console.log("hangUp2");
+        commit("SET_CAN_CONNECT_ON");
       } catch (err) {
         handleCatch((err as Error).message);
       }
     },
-    setEmptyStream({ state, commit }: any) {
+    setEmptyStream({ commit }: any) {
       console.log("rtcCam/setEmptyStream");
 
       try {
-        commit("UPDATE_VIDEO", getEmptyMediaStream());
-        const { status } = state;
-        status.CAN_CONNECT = true;
-        commit("UPDATE_WORKFLOW", status);
+        commit("UPDATE_STREAM", getEmptyMediaStream());
+        commit("SET_CAN_CONNECT_OFF");
       } catch (err: any) {
         handleCatch(err);
         return false;
