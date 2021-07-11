@@ -29,20 +29,20 @@
     <button
       type="button"
       class="btn btn-warning"
-      id="muteAudio"
+      id="stopAudio"
       v-if="isAudioOn"
-      @click="muteAudio"
+      @click="stopAudio"
     >
-      muteAudio 🔇
+      stopAudio 🔇
     </button>
     <button
       type="button"
       class="btn btn-warning"
-      id="enableAudio"
+      id="startAudio"
       v-else
-      @click="enableAudio"
+      @click="startAudio"
     >
-      enableAudio 🔊
+      startAudio 🔊
     </button>
     <br />
     <button type="button" class="btn btn-danger mt-2" @click="hangUp">
@@ -52,7 +52,6 @@
 </template>
 
 <script lang="ts">
-import { toast } from "../services/ToastService";
 import {
   ref,
   defineComponent,
@@ -61,12 +60,11 @@ import {
   onUpdated,
   onBeforeMount,
   computed,
-  handleError,
 } from "vue";
 import { useStore } from "vuex";
 import router from "../../src/router/index";
 import { CAM_TYPE, handleCatch, SCREEN_TYPE } from "../store/modules/utils";
-import { doc, toggleFullscreen } from "../services/RTCService";
+import { toggleFullscreen } from "../services/StreamService";
 
 interface VideoHTMLRef {
   srcObject: MediaStream;
@@ -108,10 +106,8 @@ export default defineComponent({
     // CAM VIDEO
     const startCamVideo = () => store.dispatch("rtcCam/startVideo"); // same as showVideo
     const hideCamVideo = () => store.dispatch("rtcCam/hideVideo");
-
-    // delete useless return response inside commits in rtcCam...
-    const muteAudio = () => store.dispatch("rtcCam/muteAudio");
-    const enableAudio = () => store.dispatch("rtcCam/enableAudio");
+    const startAudio = () => store.dispatch("rtcCam/startAudio");
+    const stopAudio = () => store.dispatch("rtcCam/stopAudio");
 
     const hangUp = async () => {
       store.dispatch("rtcCam/hangUp");
@@ -125,25 +121,20 @@ export default defineComponent({
         const videoHTML = camVideo.value;
         if (stream && videoHTML) {
           try {
-            // update rtc
-            // store.dispatch("rtcCam/")
-
-            // update front local user
-            videoHTML.srcObject = stream;
+            videoHTML.srcObject = store.getters["rtcCam/getStream"];
             videoHTML.muted = true;
             videoHTML.onloadedmetadata = (e) => e.target.play();
-            // state.isCamOn = true; // useful ?
           } catch (err: any) {
             handleCatch(err);
           }
         }
+        // if inactive, show image...
       }
     );
 
     store.watch(
       () => store.getters["rtcScreen/getStream"],
       (stream: MediaStream) => {
-        console.log("getStream 🎈");
         const videoHTML = screenVideo.value;
         console.log("watcher", stream, videoHTML);
         if (stream && videoHTML) {
@@ -182,8 +173,8 @@ export default defineComponent({
       hangUp,
       camVideo,
       hideCamVideo,
-      muteAudio,
-      enableAudio,
+      stopAudio,
+      startAudio,
       screenVideo,
       startCamVideo,
       stopScreenVideo,

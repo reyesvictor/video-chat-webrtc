@@ -1,5 +1,4 @@
 import { handleCatch } from "@/store/modules/utils";
-import { MyMedia } from "@/types";
 
 interface MyMediaDevices extends MediaDevices {
   getUserMedia: any;
@@ -25,25 +24,25 @@ if (!myNavigator?.getUserMedia) {
 }
 
 export const getCamStream = async (
-  media: MyMedia
-): Promise<void | MediaStream> => {
+  constraints: MediaStreamConstraints
+): Promise<MediaStream> => {
   let stream;
 
   if (myNavigator.mediaDevices) {
     try {
-      // @ts-ignore
-      stream = await myNavigator.mediaDevices.getUserMedia(media);
+      stream = await myNavigator.mediaDevices.getUserMedia(constraints);
     } catch (err: any) {
       handleCatch(err);
     }
   } else {
     try {
-      // @ts-ignore
-      stream = await myNavigator.getUserMedia(media);
+      stream = await myNavigator.getUserMedia(constraints);
     } catch (err: any) {
       handleCatch(err);
     }
   }
+
+  console.log("🎋🎋🎋🎋🎋🎋", constraints, stream);
 
   return stream;
 };
@@ -67,4 +66,30 @@ export const getScreenStream = async (): Promise<boolean | MediaStream> => {
   }
 
   return stream;
+};
+
+export const doc: any = document;
+
+export const getFullscreenElement = () => {
+  return (
+    doc.fullscreenElement ||
+    doc.webkitFullscreenElement ||
+    doc.mozFullscreenElement ||
+    doc.msFullscreenElement
+  );
+};
+
+export const toggleFullscreen = (selector: string) => {
+  if (selector.length === 0) {
+    return handleCatch(
+      "Selector to toggle video element in fullscreen does not exist"
+    );
+  }
+
+  console.log("toggleFullscreen: ", selector);
+  if (getFullscreenElement()) {
+    document.exitFullscreen();
+  } else {
+    document.querySelector(selector)?.requestFullscreen().catch(console.log);
+  }
 };

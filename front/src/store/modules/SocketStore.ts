@@ -78,7 +78,7 @@ export default {
         }
 
         if (
-          rootState.rtcScreen.status.VIDEO_ACTIVE &&
+          rootState.rtcScreen.status.CAN_CONNECT &&
           joinedStreamType === CAM_TYPE
         ) {
           console.log("ready rtcScreen");
@@ -130,7 +130,7 @@ export default {
           }
 
           if (
-            rootState.rtcScreen.status.VIDEO_ACTIVE &&
+            rootState.rtcScreen.status.CAN_CONNECT &&
             streamTrade.joined === SCREEN_TYPE
           ) {
             console.log("offer rtcScreen inside");

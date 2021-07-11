@@ -25,6 +25,7 @@ export default {
       required: false,
     },
     status: {
+      CAN_CONNECT: false,
       VIDEO_ACTIVE: false,
       AUDIO_ACTIVE: false,
     },
@@ -33,12 +34,13 @@ export default {
     UPDATE_VIDEO(state: RTCState, stream: MediaStream) {
       state.stream = stream;
     },
-    UPDATE_WORKFLOW(state: RTCState, status: Status) {
+    UPDATE_STATUS(state: RTCState, status: Status) {
       state.status = status;
       console.log("new screen status", status);
     },
     STOP_VIDEO(state: RTCState) {
       state.status.VIDEO_ACTIVE = false;
+      state.status.CAN_CONNECT = false;
 
       // doublon hangUp
       state.stream
@@ -58,7 +60,8 @@ export default {
         commit("UPDATE_VIDEO", stream);
         const status = state.status;
         status.VIDEO_ACTIVE = true;
-        commit("UPDATE_WORKFLOW", status);
+        state.status.CAN_CONNECT = true;
+        commit("UPDATE_STATUS", status);
 
         // dispatch("socket/connect", null, { root: true });
         // setTimeout(dispatch("socket/join", SCREEN_TYPE, { root: true }), 3000);
@@ -110,7 +113,7 @@ export default {
       }
     },
     updateStatus({ commit }: any, status: Status) {
-      if (status) commit("UPDATE_WORKFLOW", status);
+      if (status) commit("UPDATE_STATUS", status);
     },
     setEmptyStream({ commit }: any) {
       commit("UPDATE_VIDEO", new MediaStream());

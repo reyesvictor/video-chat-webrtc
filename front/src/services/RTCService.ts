@@ -1,3 +1,4 @@
+import { toggleFullscreen } from "./StreamService";
 import { CAM_TYPE, SCREEN_TYPE } from "./../store/modules/utils";
 import { handleCatch } from "@/store/modules/utils";
 import { IceServer, StreamTrade } from "./../store/modules/types";
@@ -28,24 +29,50 @@ export const doc: any = document;
 export const OnTrackFunction = (event: any, peerId: string) => {
   const trackKind = event?.track?.kind;
 
+  console.log("🔎 OnTrackFunction: ", trackKind);
+
   if (trackKind === "video") {
     const newPeerVideo: HTMLVideoElement = document.createElement("video");
     newPeerVideo.style.background = "purple";
     newPeerVideo.setAttribute("id", peerId);
     newPeerVideo.srcObject = event.streams[0];
     newPeerVideo.onloadedmetadata = () => {
+      console.log("🔎 onloadedmedata: ", trackKind);
       newPeerVideo.play();
     };
+
+    newPeerVideo.muted = true;
 
     newPeerVideo.onclick = (e: Event) => {
       e.target?.addEventListener("click", () => {
         toggleFullscreen("#" + peerId);
       });
     };
+
     doc.getElementById("video-grid").appendChild(newPeerVideo);
+  } else if (trackKind === "audio") {
+    console.log("🔍 inside trackKind audio");
+    const newPeerAudio: HTMLAudioElement = document.createElement("audio");
+    newPeerAudio.style.background = "orange";
+    newPeerAudio.setAttribute("id", "audio" + peerId);
+    console.log("🔍 event.streams : ", event.streams);
+    newPeerAudio.srcObject = event.streams[0];
+    newPeerAudio.onloadedmetadata = () => {
+      console.log("🔎 onloadedmedata: ", trackKind);
+      newPeerAudio.play();
+    };
+
+    newPeerAudio.onclick = (e: Event) => {
+      e.target?.addEventListener("click", () => {
+        toggleFullscreen("#audio" + peerId);
+      });
+    };
+
+    doc.getElementById("video-grid").appendChild(newPeerAudio);
   }
 };
 
+// doublon ?
 export const addTracks = (stream: MediaStream, peer: RTCPeerConnection) =>
   stream.getTracks().forEach((track: MediaStreamTrack) => {
     peer.addTrack(track, stream);
@@ -168,7 +195,6 @@ export const sendScreenOffer = ({
   userId,
   state,
   joinedStreamType,
-  peerId,
 }: SendOffer) => {
   console.log("sendScreenOffer");
   const streamTrade = {
@@ -180,52 +206,4 @@ export const sendScreenOffer = ({
     OnIceCandidateFunction(e, userId, state, streamTrade);
   addTracks(stream, peer);
   createOffer(peer, state, userId, streamTrade);
-};
-
-export const getFullscreenElement = () => {
-  return (
-    doc.fullscreenElement ||
-    doc.webkitFullscreenElement ||
-    doc.mozFullscreenElement ||
-    doc.msFullscreenElement
-  );
-};
-
-export const toggleFullscreen = (selector: string) => {
-  if (selector.length === 0) {
-    return handleCatch(
-      "Selector to toggle video element in fullscreen does not exist"
-    );
-  }
-
-  console.log("toggleFullscreen: ", selector);
-  if (getFullscreenElement()) {
-    document.exitFullscreen();
-  } else {
-    document.querySelector(selector)?.requestFullscreen().catch(console.log);
-  }
-};
-
-export const replaceTracks = (senders: RTCRtpSender[], stream: MediaStream) => {
-  senders.forEach((sender: RTCRtpSender) => {
-    if (sender.track?.kind === "video") {
-      const newVideoTrack = stream
-        .getTracks()
-        .find((track: MediaStreamTrack) => track.kind === "video");
-
-      if (newVideoTrack) {
-        console.log("New video tracks setted 😎");
-        sender.replaceTrack(newVideoTrack);
-      }
-    } else if (sender.track?.kind === "audio") {
-      const newAudioTrack = stream
-        .getTracks()
-        .find((track: MediaStreamTrack) => track.kind === "video");
-
-      if (newAudioTrack) {
-        console.log("New Audio tracks setted 😎");
-        sender.replaceTrack(newAudioTrack);
-      }
-    }
-  });
 };
