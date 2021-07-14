@@ -9,8 +9,8 @@
     <video id="screen-video" ref="screenVideo"></video>
   </div>
   <div id="buttons-container">
-    <button v-if="isCamOn" class="btn btn-secondary mb-2" @click="hideCamVideo">
-      🙈"Hide" My Camera
+    <button v-if="isCamOn" class="btn btn-secondary mb-2" @click="stopCamVideo">
+      🙈 Stop showing my camera
     </button>
     <button v-else class="btn btn-primary mb-2" @click="startCamVideo">
       👁 Show My Camera
@@ -105,7 +105,7 @@ export default defineComponent({
     const stopScreenVideo = () => store.dispatch("rtcScreen/stopVideo");
 
     const startCamVideo = () => store.dispatch("rtcCam/startVideo");
-    const hideCamVideo = () => store.dispatch("rtcCam/hideVideo");
+    const stopCamVideo = () => store.dispatch("rtcCam/stopVideo");
     const startAudio = () => store.dispatch("rtcCam/startAudio");
     const stopAudio = () => store.dispatch("rtcCam/stopAudio");
 
@@ -182,7 +182,7 @@ export default defineComponent({
       join,
       hangUp,
       camVideo,
-      hideCamVideo,
+      stopCamVideo,
       stopAudio,
       startAudio,
       screenVideo,

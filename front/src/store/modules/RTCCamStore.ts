@@ -2,11 +2,10 @@ import {
   replaceTracks,
   createEmptyVideoTrack,
   getEmptyMediaStream,
-  createEmptyAudioTrack,
 } from "./../../services/MediaStreamService";
 import { getCamStream } from "@/services/StreamService";
 import { Peer, RTCState, VideoSize } from "./types";
-import { doc, w, handleCatch } from "./utils";
+import { handleCatch } from "./utils";
 
 const log = (...values: any) => true && console.log("📷 rtcCam/", ...values);
 
@@ -44,11 +43,23 @@ export default {
     SET_VIDEO_INACTIVE(state: RTCState) {
       state.status.VIDEO_ACTIVE = false;
     },
+    STOP_VIDEO(state: RTCState) {
+      state.stream
+        .getTracks()
+        ?.find((e: MediaStreamTrack) => e.kind === "video")
+        ?.stop();
+    },
     SET_AUDIO_ACTIVE(state: RTCState) {
       state.status.AUDIO_ACTIVE = true;
     },
     SET_AUDIO_INACTIVE(state: RTCState) {
       state.status.AUDIO_ACTIVE = false;
+    },
+    STOP_AUDIO(state: RTCState) {
+      state.stream
+        .getTracks()
+        ?.find((e: MediaStreamTrack) => e.kind === "audio")
+        ?.stop();
     },
     SET_CAN_CONNECT(state: RTCState) {
       state.status.CAN_CONNECT = true;
@@ -58,7 +69,7 @@ export default {
     },
   },
   actions: {
-    async setEmptyStream({ commit, dispatch, getters }: any) {
+    async setEmptyStream({ commit, dispatch }: any) {
       log("setEmptyStream");
 
       await commit("SET_CAN_CONNECT");
@@ -77,21 +88,14 @@ export default {
       await commit("SET_VIDEO_ACTIVE");
       await dispatch("updateSendersStream");
     },
-    async hideVideo({ state, getters, commit, dispatch }: any) {
-      log("hideVideo");
-      if (state.stream?.getTracks) {
-        state.stream
-          .getTracks()
-          .filter((e: MediaStreamTrack) => e.kind === "video").enabled = false;
-        // .filter((e: MediaStreamTrack) => e.kind === "video")
-        // .stop();
-      }
+    async stopVideo({ getters, commit, dispatch }: any) {
+      log("stopVideo");
 
+      await commit("STOP_VIDEO");
       await dispatch("updateStream", {
         audio: getters.getIsAudioActive,
         video: false,
       });
-
       await commit("SET_VIDEO_INACTIVE");
       await dispatch("updateSendersStream");
     },
@@ -109,15 +113,15 @@ export default {
     async stopAudio({ getters, commit, dispatch }: any) {
       log("stopAudio");
 
+      await commit("STOP_AUDIO");
       await dispatch("updateStream", {
         audio: false,
         video: getters.getIsVideoActive,
       });
-
       await commit("SET_AUDIO_INACTIVE");
       await dispatch("updateSendersStream");
     },
-    async updateStream({ getters, commit }: any, { audio, video }: any) {
+    async updateStream({ commit }: any, { audio, video }: any) {
       try {
         let stream: MediaStream = new MediaStream();
 
