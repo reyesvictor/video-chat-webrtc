@@ -111,7 +111,6 @@ io.on("connection", (socket) => {
       let room = rooms.get(roomId);
       console.log("room", room);
       callback({ success: 'Joined successfully', roomId })
-      // emit
       console.log('ready joinedStreamType', joinedStreamType);
       socket.to(roomId).emit("ready", userId, joinedStreamType); //Informs the other peer in the room.
     }
@@ -133,7 +132,7 @@ io.on("connection", (socket) => {
 
   socket.on("candidate", (candidate, userToReplyTo, streamTrade) => {
     console.log("candidate", candidate.candidate);
-    // console.log(candidate);
+
     //Sends Candidate to the other peer in the room.
     socket.to(userToReplyTo).emit("candidate", candidate, userId, streamTrade);
   });

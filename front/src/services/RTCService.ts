@@ -1,8 +1,11 @@
 import { toggleFullscreen } from "./StreamService";
-import { CAM_TYPE, SCREEN_TYPE } from "./../store/modules/utils";
+import { CAM_TYPE, doc, SCREEN_TYPE } from "./../store/modules/utils";
 import { handleCatch } from "@/store/modules/utils";
 import { IceServer, StreamTrade } from "./../store/modules/types";
-import { track } from "logrocket";
+import store from "@/store";
+
+const log = (...values: any) =>
+  false && console.log("🐕‍🦺 RTCService ", ...values);
 
 export const iceServers: IceServer[] = [
   {
@@ -20,13 +23,12 @@ export const OnIceCandidateFunction = (
   streamTrade: StreamTrade
 ) => {
   if (event.candidate) {
-    console.log("OnIceCandidateFunction: ", streamTrade);
+    log("OnIceCandidateFunction: ", streamTrade);
     state.socket.emit("candidate", event.candidate, userToReplyTo, streamTrade);
   }
 };
 
-export const doc: any = document;
-
+// Setting peers videos in the DOM
 export const OnTrackFunction = (event: any, peerId: string) => {
   const trackKind = event?.track?.kind;
   if (!trackKind) return false;
@@ -37,10 +39,10 @@ export const OnTrackFunction = (event: any, peerId: string) => {
     document.createElement(trackKind);
 
   if (trackKind === "video") {
-    htmlElement.style.background = "purple";
     htmlElement.muted = true;
+    id = peerId;
   } else if (trackKind === "audio") {
-    id = "audio-" + "peerId";
+    id = "audio-" + peerId;
   }
 
   htmlElement.setAttribute("id", id);
@@ -49,10 +51,9 @@ export const OnTrackFunction = (event: any, peerId: string) => {
     console.log("🔎 onloadedmedata: ", trackKind);
     htmlElement.play();
   };
-  htmlElement.onclick = (e: Event) => {
-    e.target?.addEventListener("click", () => {
-      toggleFullscreen("#" + id);
-    });
+
+  htmlElement.ondblclick = (e: Event) => {
+    toggleFullscreen("#" + id);
   };
 
   doc.getElementById(trackKind + "-grid").appendChild(htmlElement);
@@ -120,12 +121,17 @@ export const sendCamAnswer = ({
   streamTrade,
   offer,
 }: SendAnswer) => {
-  console.log("sendCamAnswer");
+  log("sendCamAnswer");
+  addTracks(store.getters["rtcCam/getStream"], peer);
+
   peer.onicecandidate = (e: RTCPeerConnectionIceEvent) =>
     OnIceCandidateFunction(e, userId, state, streamTrade);
+
+  peer.oniceconnectionstatechange = function () {
+    console.log("ICE state: ", peer.iceConnectionState);
+  };
   peer.ontrack = (e: RTCTrackEvent) =>
     OnTrackFunction(e, userId + streamTrade.joined);
-  addTracks(stream, peer);
   setRemoteDescription(peer, offer, state, userId, streamTrade);
 };
 
@@ -137,7 +143,7 @@ export const sendScreenAnswer = ({
   streamTrade,
   offer,
 }: SendAnswer) => {
-  console.log("sendScreenAnswer");
+  log("sendScreenAnswer");
   peer.onicecandidate = (e: RTCPeerConnectionIceEvent) =>
     OnIceCandidateFunction(e, userId, state, streamTrade);
 
@@ -162,16 +168,20 @@ export const sendCamOffer = ({
   joinedStreamType,
   peerId,
 }: SendOffer) => {
-  console.log("sendCamOffer");
+  log("sendCamOffer");
   const streamTrade = {
     joined: joinedStreamType,
     present: CAM_TYPE,
+  };
+  addTracks(store.getters["rtcCam/getStream"], peer);
+
+  peer.oniceconnectionstatechange = function () {
+    console.log("ICE state: ", peer.iceConnectionState);
   };
 
   peer.onicecandidate = (e: RTCPeerConnectionIceEvent) =>
     OnIceCandidateFunction(e, userId, state, streamTrade);
   peer.ontrack = (e: RTCTrackEvent) => OnTrackFunction(e, peerId);
-  addTracks(stream, peer);
   createOffer(peer, state, userId, streamTrade);
 };
 
@@ -182,7 +192,7 @@ export const sendScreenOffer = ({
   state,
   joinedStreamType,
 }: SendOffer) => {
-  console.log("sendScreenOffer");
+  log("sendScreenOffer");
   const streamTrade = {
     joined: joinedStreamType,
     present: SCREEN_TYPE,

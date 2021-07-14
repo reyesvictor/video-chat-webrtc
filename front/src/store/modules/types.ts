@@ -30,3 +30,8 @@ export interface StreamTrade {
   joined: string;
   present: string;
 }
+
+export interface VideoSize {
+  width: number;
+  height: number;
+}

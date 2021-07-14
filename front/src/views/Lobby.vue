@@ -70,9 +70,6 @@ export default defineComponent({
     // TODO factorize this function with the same inside ROOM.vue
     const join = () => {
       store.dispatch("socket/connect");
-      // TODO setup up empty video when joining room
-      // store.dispatch("rtcCam/setEmptyStream");
-      // store.dispatch("rtcScreen/setEmptyStream");
       console.log("Lobby.vue -> join() ", CAM_TYPE);
       // store.dispatch("socket/join", CAM_TYPE);
     };

@@ -1,7 +1,7 @@
-import { handleCatch } from "./utils";
-import { getScreenStream } from "@/services/StreamService";
+import { getScreenStream } from "./../../services/StreamService";
+import { doc, handleCatch } from "./utils";
 import { MyMediaStream } from "@/types";
-import { Peer, RTCState, Status } from "./types";
+import { Peer, RTCState, Status, VideoSize } from "./types";
 import { getEmptyMediaStream } from "@/services/MediaStreamService";
 
 // TODO verify if not in mobile to not trigger this store (getmediadevices lacks on mobile)
@@ -46,13 +46,14 @@ export default {
       state.stream
         .getTracks()
         .forEach((track: MediaStreamTrack) => track.stop());
+
       state.stream = getEmptyMediaStream();
 
       console.log("peers", state.peers);
     },
   },
   actions: {
-    async startVideo({ state, commit, dispatch }: any) {
+    async startVideo({ state, commit }: any) {
       console.log("rtcScreen/startVideo");
       const stream: MyMediaStream = await getScreenStream();
       if (stream) {
@@ -61,6 +62,9 @@ export default {
         status.VIDEO_ACTIVE = true;
         state.status.CAN_CONNECT = true;
         commit("UPDATE_STATUS", status);
+
+        // put inside status => VIDEO_ON
+        doc.querySelector("#screen-video").style.display = "block";
 
         // dispatch("socket/connect", null, { root: true });
         // setTimeout(dispatch("socket/join", SCREEN_TYPE, { root: true }), 3000);
@@ -72,6 +76,9 @@ export default {
       Object.values(getters.getCleanPeers).forEach((rtc: any) =>
         rtc?.close?.()
       );
+
+      // add css effect fade out or something else
+      doc.querySelector("#screen-video").style.display = "none";
     },
     async muteAudio({ dispatch }: any) {
       const response = await dispatch("updateAudioStatus", false);
@@ -135,6 +142,9 @@ export default {
       const { required, type, ...rest } = state.peers;
 
       return rest;
+    },
+    getVideoSize(state: RTCState): VideoSize {
+      return state.media.video;
     },
   },
 };

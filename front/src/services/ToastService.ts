@@ -1,6 +1,5 @@
 import Swal from "sweetalert2";
 
-// TODO Factorize this in types.ts
 type Icon = "success" | "error" | "warning" | "info" | "question";
 
 export const toast = (icon: Icon, title: string) => {

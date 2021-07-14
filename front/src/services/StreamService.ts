@@ -1,4 +1,4 @@
-import { handleCatch } from "@/store/modules/utils";
+import { doc, handleCatch } from "@/store/modules/utils";
 
 interface MyMediaDevices extends MediaDevices {
   getUserMedia: any;
@@ -42,8 +42,6 @@ export const getCamStream = async (
     }
   }
 
-  console.log("🎋🎋🎋🎋🎋🎋", constraints, stream);
-
   return stream;
 };
 
@@ -67,8 +65,6 @@ export const getScreenStream = async (): Promise<boolean | MediaStream> => {
 
   return stream;
 };
-
-export const doc: any = document;
 
 export const getFullscreenElement = () => {
   return (

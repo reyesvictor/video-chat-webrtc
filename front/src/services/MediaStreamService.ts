@@ -1,4 +1,7 @@
+import store from "@/store";
 import { handleCatch } from "@/store/modules/utils";
+
+const log = (...values: any) => console.log("🎏 MediaSteamService ", ...values);
 
 export const createEmptyAudioTrack = () => {
   const ctx = new AudioContext();
@@ -6,16 +9,12 @@ export const createEmptyAudioTrack = () => {
   const dst: any = oscillator.connect(ctx.createMediaStreamDestination());
   oscillator.start();
   const track = dst.stream.getAudioTracks()[0];
+
   return Object.assign(track, { enabled: false });
 };
 
-export const createEmptyVideoTrack = ({
-  width,
-  height,
-}: {
-  width: number;
-  height: number;
-}) => {
+export const createEmptyVideoTrack = () => {
+  const { width, height } = store.getters["rtcCam/getVideoSize"];
   const canvas: any = Object.assign(document.createElement("canvas"), {
     width,
     height,
@@ -29,39 +28,25 @@ export const createEmptyVideoTrack = ({
 };
 
 export const getEmptyMediaStream = (): MediaStream =>
-  new MediaStream([
-    createEmptyAudioTrack(),
-    createEmptyVideoTrack({ width: 640, height: 480 }),
-  ]);
+  new MediaStream([createEmptyAudioTrack(), createEmptyVideoTrack()]);
 
 export const replaceTracks = (senders: RTCRtpSender[], stream: MediaStream) => {
   senders.forEach((sender: RTCRtpSender) => {
-    if (sender.track?.kind === "video") {
-      const newVideoTrack = stream
-        .getTracks()
-        .find((track: MediaStreamTrack) => track.kind === "video");
+    if (!sender.track?.kind) return false;
 
-      if (newVideoTrack) {
-        console.log("New Video track set 😎");
-        sender.track.enabled = true;
-        sender.replaceTrack(newVideoTrack).catch(handleCatch);
-      } else {
-        console.log("New Video track disabled 😞");
-        sender.track.enabled = false;
-      }
-    } else if (sender.track?.kind === "audio") {
-      const newAudioTrack = stream
-        .getTracks()
-        .find((track: MediaStreamTrack) => track.kind === "audio");
+    const trackKind = sender.track.kind;
 
-      if (newAudioTrack) {
-        console.log("New Audio track set 😎");
-        sender.track.enabled = true;
-        sender.replaceTrack(newAudioTrack).catch(handleCatch);
-      } else {
-        console.log("New Audio track disabled 😞");
-        sender.track.enabled = false;
-      }
+    const newTrack = stream
+      .getTracks()
+      .find((track: MediaStreamTrack) => track.kind === trackKind);
+
+    if (newTrack) {
+      log("New %s track set 😎", trackKind);
+      sender.track.enabled = true;
+      sender.replaceTrack(newTrack).catch(handleCatch);
+    } else {
+      log("New %s track disabled 😞", trackKind);
+      sender.track.enabled = false;
     }
   });
 };

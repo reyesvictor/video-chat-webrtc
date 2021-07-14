@@ -1,5 +1,9 @@
 import { toast } from "@/services/ToastService";
 
+// The joys of typescript 👍
+export const w: any = window;
+export const doc: any = document;
+
 export const STREAMS_TYPE = ["cam", "screen"];
 export const CAM_TYPE = "cam";
 export const SCREEN_TYPE = "screen";
@@ -17,8 +21,6 @@ export const handleSocketResult = (success: string, err: string) => {
 };
 
 export const handleCatch = (err: string) => {
-  console.log("⚠💥 " + err);
-
-  // if DEV environment => do not show toast errors
   toast("error", err);
+  console.error("⚠💥 " + err);
 };

@@ -81,7 +81,8 @@ export default defineComponent({
     //WHERE TO PUT THIS ? VUE VERSION?
     onUpdated(() => {
       document.querySelectorAll("video").forEach((video) => {
-        video.onclick = () => toggleFullscreen("#" + video.getAttribute("id"));
+        video.ondblclick = () =>
+          toggleFullscreen("#" + video.getAttribute("id"));
       });
     });
 
@@ -100,12 +101,10 @@ export default defineComponent({
       hasJoined: false,
     });
 
-    // SCREEN VIDEO
     const startScreenVideo = () => store.dispatch("rtcScreen/startVideo");
     const stopScreenVideo = () => store.dispatch("rtcScreen/stopVideo");
 
-    // CAM VIDEO
-    const startCamVideo = () => store.dispatch("rtcCam/startVideo"); // same as showVideo
+    const startCamVideo = () => store.dispatch("rtcCam/startVideo");
     const hideCamVideo = () => store.dispatch("rtcCam/hideVideo");
     const startAudio = () => store.dispatch("rtcCam/startAudio");
     const stopAudio = () => store.dispatch("rtcCam/stopAudio");
@@ -120,16 +119,26 @@ export default defineComponent({
       () => store.getters["rtcCam/getStream"],
       (stream: MediaStream) => {
         const videoHTML = camVideo.value;
-        if (stream && videoHTML) {
+        if (videoHTML && stream) {
           try {
-            videoHTML.srcObject = store.getters["rtcCam/getStream"];
-            videoHTML.muted = true;
-            videoHTML.onloadedmetadata = (e) => e.target.play();
+            if (
+              stream
+                .getTracks()
+                .some(
+                  (t: MediaStreamTrack) =>
+                    t.kind === "video" && t.enabled === true
+                )
+            ) {
+              videoHTML.srcObject = stream;
+              videoHTML.muted = true;
+              videoHTML.onloadedmetadata = (e) => e.target.play();
+            } else {
+              videoHTML.srcObject = new MediaStream();
+            }
           } catch (err: any) {
             handleCatch(err);
           }
         }
-        // if inactive, show image...
       }
     );
 
@@ -153,14 +162,14 @@ export default defineComponent({
     );
 
     const join = async () => {
-      store.dispatch("rtcCam/setEmptyStream");
+      await store.dispatch("rtcCam/setEmptyStream");
 
       // ONLY IF SOMEONES JOINS AND DOESNT CREATE A ROOM !!
-      store.dispatch("socket/connect"); // WARNING DOUBLE CONNECT IF THE SAME PERSON CREATED THE
+      await store.dispatch("socket/connect"); // WARNING DOUBLE CONNECT IF THE SAME PERSON CREATED THE
       const success = await store.dispatch("socket/join", CAM_TYPE);
 
       // TODO movie hasJoined inside a STORE like SOCKETSTORE
-      console.log("BRUH BRUH", success);
+      console.log("socket/join success", success);
       if (success) state.hasJoined = true;
     };
 
@@ -180,7 +189,6 @@ export default defineComponent({
       startCamVideo,
       stopScreenVideo,
       startScreenVideo,
-      toggleFullscreen,
       ...toRefs(state),
     };
   },
@@ -194,23 +202,8 @@ export default defineComponent({
   grid-auto-rows: 300px;
 }
 
-video,
-img {
-  width: 533px;
-  height: 300px;
-  // max-width: -webkit-fill-available !important;
-  // max-width: -webkit-fill-available !important;
-  max-height: 300px !important;
-  max-width: 533px !important;
-  object-fit: cover;
-}
-
-#user-video {
-  background: red;
-}
-
 #screen-video {
-  background: green;
+  display: none;
 }
 
 #buttons-container {

@@ -1,5 +1,3 @@
-// Contain all the types for this apparent
-// can use Paste JSON as TYPES
 export interface Person {
   firstName: string;
   lastName: string;

@@ -14,7 +14,6 @@
 import { defineComponent } from "vue";
 import { useStore } from "vuex";
 
-// TODO See if the logic should be in the /views instead of /components
 export default defineComponent({
   name: "HomePage",
   props: {

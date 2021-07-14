@@ -16,6 +16,7 @@ import router from "@/router/index";
 import { StreamTrade } from "./types";
 
 const myIO: any = io;
+const log = (...values: any) => console.log("🧦 socketStore/", ...values);
 
 interface SocketState {
   socket: Socket;
@@ -37,7 +38,6 @@ export default {
   mutations: {
     CONNECT(state: SocketState) {
       state.socket = myIO.connect(
-        // local test
         // "https://e5bd0781885f.ngrok.io" ??
         "http://localhost:4000" ??
           "http://" + window.location.hostname + ":4000"
@@ -45,31 +45,36 @@ export default {
     },
   },
   actions: {
-    connect({ state, commit, getters, rootState, dispatch }: any) {
+    async connect({
+      state,
+      commit,
+      getters,
+      rootState,
+      dispatch,
+    }: any): Promise<boolean> {
       if (state.socket?.connected) {
-        return;
+        return true;
       }
 
-      commit("CONNECT");
-      const socket = state.socket;
-      console.log("socket/connect 🎃");
+      await commit("CONNECT");
+      const { socket } = state;
+      log("socket/connect 🎃");
       const camPeers = getters.getCamPeers;
       const screenPeers = getters.getScreenPeers;
 
       socket.on("ready", (userId: string, joinedStreamType: string) => {
-        const cam = getters.getCamStream;
         const peerId = userId + joinedStreamType;
-        console.log("ready", rootState.rtcCam);
+        log("ready", rootState.rtcCam);
 
         if (rootState.rtcCam.status.CAN_CONNECT) {
-          console.log("ready rtcCam");
+          log("ready rtcCam");
           // TODO this is a state in the store, I should use an action to creation a new peer...
           camPeers[peerId] = new RTCPeerConnection(configuration);
           const camPeer = camPeers[peerId];
 
           sendCamOffer({
             joinedStreamType,
-            stream: cam,
+            stream: getters.getCamStream,
             peer: camPeer,
             peerId,
             state,
@@ -81,14 +86,14 @@ export default {
           rootState.rtcScreen.status.CAN_CONNECT &&
           joinedStreamType === CAM_TYPE
         ) {
-          console.log("ready rtcScreen");
+          log("ready rtcScreen");
           // TODO this is a state in the store, I should use an action to creation a new peer...
           screenPeers[peerId] = new RTCPeerConnection(configuration);
           const screenPeer = screenPeers[peerId];
 
           sendScreenOffer({
             joinedStreamType,
-            stream: cam,
+            stream: getters.getCamStream,
             peer: screenPeer,
             peerId,
             state,
@@ -105,23 +110,22 @@ export default {
       socket.on(
         "offer",
         (offer: MyRTCOffer, userId: string, streamTrade: StreamTrade) => {
-          console.log("offer -> creating answer");
+          log("offer -> creating answer");
           const peerId = userId + streamTrade.present;
 
           if (
             rootState.rtcCam.status.CAN_CONNECT &&
             streamTrade.joined === CAM_TYPE
           ) {
-            console.log("offer rtcCam inside");
+            log("offer rtcCam inside");
 
             // TODO move this into action to create the peer inside state with a MUTATION
             camPeers[peerId] = new RTCPeerConnection(configuration);
             const camPeer = camPeers[peerId];
-            const cam = getters.getCamStream;
 
             sendCamAnswer({
               peer: camPeer,
-              stream: cam,
+              stream: getters.getCamStream,
               userId,
               state,
               streamTrade,
@@ -133,7 +137,7 @@ export default {
             rootState.rtcScreen.status.CAN_CONNECT &&
             streamTrade.joined === SCREEN_TYPE
           ) {
-            console.log("offer rtcScreen inside");
+            log("offer rtcScreen inside");
 
             screenPeers[peerId] = new RTCPeerConnection(configuration);
             const screenPeer = screenPeers[peerId];
@@ -160,7 +164,7 @@ export default {
           userId: string,
           streamTrade: StreamTrade
         ) => {
-          console.log("socket.on candidate: ", streamTrade);
+          log("socket.on candidate: ", streamTrade);
 
           if (streamTrade.present === CAM_TYPE) {
             let peer: RTCPeerConnection = new RTCPeerConnection();
@@ -190,7 +194,7 @@ export default {
           userId: string,
           streamTrade: StreamTrade
         ) => {
-          console.log("answer || streamTrade: ", streamTrade);
+          log("answer || streamTrade: ", streamTrade);
           let peer: RTCPeerConnection = new RTCPeerConnection();
 
           if (streamTrade.present === CAM_TYPE) {
@@ -207,65 +211,63 @@ export default {
         }
       );
 
-      console.log("socket2", socket);
       // correct this to stream-disconnected
-      socket.on("user-disconnected", (userId: string) => {
-        dispatch("socket/closeCamStream", userId, { root: true });
-        dispatch("socket/closeScreenStream", userId, { root: true });
+      socket.on("user-disconnected", async (userId: string) => {
+        log("user-disconnected");
+        await dispatch("socket/closeCamStream", userId, { root: true });
+        await dispatch("socket/closeScreenStream", userId, { root: true });
       });
 
-      socket.on("user-screen-share-disconnected", (userId: string) => {
-        console.log("socket.on/user-screen-share-disconnected -> dispatch");
+      socket.on("user-screen-share-disconnected", async (userId: string) => {
+        log("socket.on/user-screen-share-disconnected -> dispatch");
 
-        dispatch("socket/closeScreenStream", userId, { root: true });
+        await dispatch("socket/closeScreenStream", userId, { root: true });
       });
+
+      return true;
     },
     sendCloseScreenStream({ state, rootState }: any) {
-      console.log("sendCloseScreenStream");
+      log("sendCloseScreenStream");
       const roomId = rootState.room.room.id;
-      console.log(state.socket, "socket");
+      log(state.socket, "socket");
       state.socket.emit("user-screen-share-disconnected", roomId);
     },
     closeCamStream({ state }: any, userId: string) {
       document.getElementById(userId + CAM_TYPE)?.remove();
       state.peers[userId + CAM_TYPE]?.close();
-
-      // Useful ?
-      // document.getElementById("name-" + userId)?.remove();
-      // document.getElementById("img-" + userId)?.remove();
     },
     closeScreenStream({ state }: any, userId: string) {
-      console.log("closeScreenStream");
+      log("closeScreenStream");
 
       document.getElementById(userId + SCREEN_TYPE)?.remove();
       state.peers[userId + SCREEN_TYPE]?.close();
     },
     createRoom({ state, dispatch }: any) {
-      console.log("socket/createRoom 🎃");
+      log("socket/createRoom 🎃");
       state.socket.emit(
         "vue-create",
-        ({ success, err, roomId }: SocketCallback) => {
+        async ({ success, err, roomId }: SocketCallback) => {
           handleSocketResult(success, err);
           router.push({ name: "Room", params: { id: roomId } });
-          dispatch("room/createRoom", roomId, { root: true });
+          await dispatch("room/createRoom", roomId, { root: true });
         }
       );
     },
     join({ state, dispatch }: any, joinedStreamType: string) {
-      console.log("socket/join 🎃", joinedStreamType);
+      log("socket/join 🎃", joinedStreamType);
       // TODO Move this in a service, an action should trigger a mutation
       return state.socket.emit(
         "vue-join",
         router.currentRoute.value.params.id,
         joinedStreamType,
-        ({ success, err, roomId }: SocketCallback) => {
+        async ({ success, err, roomId }: SocketCallback) => {
           handleSocketResult(success, err);
-          dispatch("room/createRoom", roomId, { root: true });
+          await dispatch("room/createRoom", roomId, { root: true });
         }
       );
     },
     hangUp({ state }: any) {
-      console.log("hangUp socket store");
+      log("hangUp socket store");
 
       return state.socket.emit(
         "force-disconnect",
